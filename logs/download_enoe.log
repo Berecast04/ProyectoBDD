@@ -1,0 +1,49 @@
+2026-06-02 12:42:32,772 [WARNING] No hay URLs. Agrega enlaces oficiales en config/enoe_urls.json
+2026-06-02 12:45:04,722 [WARNING] No se detectaron enlaces en HTML; se generaran URLs oficiales de microdatos.
+2026-06-02 12:45:48,614 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim1_dbf.zip
+2026-06-02 12:46:36,272 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim2_dbf.zip
+2026-06-02 12:47:40,167 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim3_dbf.zip
+2026-06-02 12:48:35,607 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim4_dbf.zip
+2026-06-02 13:28:43,212 [WARNING] No se detectaron enlaces en HTML; se generaran URLs oficiales de microdatos.
+2026-06-02 13:28:43,349 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2020\enoe_2020_trim1_dbf.zip
+2026-06-02 13:28:43,459 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2020\enoe_2020_trim2_dbf.zip
+2026-06-02 13:28:43,569 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2020\enoe_2020_trim3_dbf.zip
+2026-06-02 13:28:43,685 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2020\enoe_2020_trim4_dbf.zip
+2026-06-02 13:28:43,801 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2021\enoe_2021_trim1_dbf.zip
+2026-06-02 13:28:43,953 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2021\enoe_2021_trim2_dbf.zip
+2026-06-02 13:28:44,065 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2021\enoe_2021_trim3_dbf.zip
+2026-06-02 13:28:44,167 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2021\enoe_2021_trim4_dbf.zip
+2026-06-02 13:28:44,279 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2022\enoe_2022_trim1_dbf.zip
+2026-06-02 13:28:44,370 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2022\enoe_2022_trim2_dbf.zip
+2026-06-02 13:28:44,467 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2022\enoe_2022_trim3_dbf.zip
+2026-06-02 13:28:44,581 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2022\enoe_2022_trim4_dbf.zip
+2026-06-02 13:29:47,706 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2023\enoe_2023_trim1_dbf.zip
+2026-06-02 13:31:12,672 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2023\enoe_2023_trim2_dbf.zip
+2026-06-02 13:32:39,370 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2023\enoe_2023_trim3_dbf.zip
+2026-06-02 13:33:32,974 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2023\enoe_2023_trim4_dbf.zip
+2026-06-02 13:34:17,431 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim1_dbf.zip
+2026-06-02 13:34:55,074 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim2_dbf.zip
+2026-06-02 13:35:51,546 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim3_dbf.zip
+2026-06-02 13:36:52,654 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2024\enoe_2024_trim4_dbf.zip
+2026-06-02 13:43:48,388 [WARNING] No se detectaron enlaces en HTML; se generaran URLs oficiales de microdatos.
+2026-06-02 13:43:48,388 [WARNING] Se omite 2020 T2: INEGI suspendio ENOE por contingencia sanitaria; ese periodo corresponde a ETOE.
+2026-06-02 13:43:48,535 [ERROR] Fallo descarga intento 1/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/enoe_2017_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:43:50,946 [ERROR] Fallo descarga intento 2/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/enoe_2017_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:43:55,156 [ERROR] Fallo descarga intento 3/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/enoe_2017_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:44:40,025 [WARNING] No se detectaron enlaces en HTML; se generaran URLs oficiales de microdatos.
+2026-06-02 13:44:40,025 [WARNING] Se omite 2020 T2: INEGI suspendio ENOE por contingencia sanitaria; ese periodo corresponde a ETOE.
+2026-06-02 13:44:40,134 [ERROR] Fallo descarga intento 1/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/enoe_2020_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:44:42,255 [ERROR] Fallo descarga intento 2/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/enoe_2020_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:44:46,396 [ERROR] Fallo descarga intento 3/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/enoe_2020_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:49:12,937 [WARNING] No se detectaron enlaces en HTML; se generaran URLs oficiales de microdatos.
+2026-06-02 13:49:12,939 [WARNING] Se omite 2020 T2: INEGI suspendio ENOE por contingencia sanitaria; ese periodo corresponde a ETOE.
+2026-06-02 13:49:13,093 [ERROR] Fallo descarga intento 1/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/2019_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:49:15,241 [ERROR] Fallo descarga intento 2/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/2019_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:49:19,387 [ERROR] Fallo descarga intento 3/3 https://www.inegi.org.mx/contenidos/programas/enoe/15ymas/microdatos/2019_trim1_dbf.zip: la respuesta no es ZIP valido: <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>PÃ¡gina no encontrada</title><link href="/estilos/siti
+2026-06-02 13:51:37,586 [WARNING] No se detectaron enlaces en HTML; se generaran URLs oficiales de microdatos.
+2026-06-02 13:51:37,586 [WARNING] Se omite 2020 T2: INEGI suspendio ENOE por contingencia sanitaria; ese periodo corresponde a ETOE.
+2026-06-02 13:52:15,815 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2019\2019trim1_dbf.zip
+2026-06-02 13:52:55,375 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2019\2019trim2_dbf.zip
+2026-06-02 13:53:32,355 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2019\2019trim3_dbf.zip
+2026-06-02 13:54:07,628 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2019\2019trim4_dbf.zip
+2026-06-02 13:55:02,333 [INFO] Descargado: C:\Users\Fernanda\Desktop\ProyectoBDD\data\raw\2020\2020trim1_dbf.zip

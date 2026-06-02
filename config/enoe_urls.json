@@ -1,0 +1,11 @@
+{
+  "nota": "Alternativa manual si el scraping de INEGI cambia. Agrega URLs ZIP oficiales por año/trimestre.",
+  "urls": [
+    {
+      "year": 2024,
+      "quarter": null,
+      "url": "",
+      "description": "Pega aqui el ZIP oficial de datos abiertos ENOE 2024 si se requiere."
+    }
+  ]
+}

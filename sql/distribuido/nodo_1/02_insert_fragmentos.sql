@@ -1,0 +1,1 @@
+-- La carga se realiza con src/load_nodes.py despues de ejecutar src/fragment_data.py.

@@ -1,0 +1,8 @@
+2026-06-02 13:23:43,514 [INFO] Leyendo ENOE_SDEMT124.dbf con 423,866 registros
+2026-06-02 13:24:36,618 [INFO] Escribiendo enoe_2024_T1.parquet con 423,866 registros
+2026-06-02 13:24:37,005 [INFO] Leyendo ENOE_SDEMT224.DBF con 427,123 registros
+2026-06-02 13:25:24,696 [INFO] Escribiendo enoe_2024_T2.parquet con 427,123 registros
+2026-06-02 13:25:25,044 [INFO] Leyendo ENOE_SDEMT324.dbf con 423,118 registros
+2026-06-02 13:26:15,137 [INFO] Escribiendo enoe_2024_T3.parquet con 423,118 registros
+2026-06-02 13:26:15,668 [INFO] Leyendo ENOE_SDEMT424.dbf con 422,408 registros
+2026-06-02 13:27:33,359 [INFO] Escribiendo enoe_2024_T4.parquet con 422,408 registros
