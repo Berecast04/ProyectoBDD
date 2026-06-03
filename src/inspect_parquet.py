@@ -63,7 +63,11 @@ def main() -> None:
         print("No se encontraron Parquet para el rango solicitado.")
         return
 
-    output.write_text("# Reporte Parquet\n\n" + report.to_markdown(index=False), encoding="utf-8")
+    try:
+        table_text = report.to_markdown(index=False)
+    except ImportError:
+        table_text = report.to_string(index=False)
+    output.write_text("# Reporte Parquet\n\n" + table_text, encoding="utf-8")
     print(report.to_string(index=False))
     print(f"\nReporte guardado en: {output}")
 

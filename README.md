@@ -65,6 +65,8 @@ Para el esquema distribuido, crea las bases con `sql/distribuido/00_create_datab
 
 Captura la descarga con barras de progreso, archivos Parquet generados, tablas en pgAdmin, conteos centralizados, conteos por nodo, vistas globales del coordinador, consultas centralizadas y distribuidas con el mismo resultado, y archivos de respaldo.
 
+La evidencia de carga centralizada ya documentada esta en `docs/evidencia_ejecucion.md`.
+
 ## Problemas comunes
 
 - Si INEGI cambia el HTML, agrega URLs ZIP oficiales a `config/enoe_urls.json` y ejecuta con `--manual-only`.

@@ -11,3 +11,16 @@ La validacion comprueba que:
 | Consultas centralizadas vs distribuidas | Mismo resultado |
 
 El script `src/validate_distribution.py` genera `docs/resultados_validacion.md`.
+
+## Evidencia centralizada obtenida
+
+La base `enoe_centralizada` contiene 9,319,750 registros en `fact_ocupacion`.
+
+| anio | registros |
+|---:|---:|
+| 2019 | 1,621,452 |
+| 2020 | 1,071,447 |
+| 2021 | 1,595,033 |
+| 2022 | 1,604,831 |
+| 2023 | 1,730,472 |
+| 2024 | 1,696,515 |
