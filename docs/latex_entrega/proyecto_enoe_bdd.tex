@@ -793,52 +793,544 @@ usuarios, el crecimiento de los datos y los requisitos de disponibilidad.
 
 \section{Guía completa de ejecución desde cero}
 
-\subsection{Máquina 1}
+Esta guía está dirigida a una persona que no tiene instalado PostgreSQL,
+Python ni las herramientas del proyecto. Todos los comandos se muestran para
+Windows PowerShell. La máquina 1 será el equipo principal: contendrá la base
+centralizada, el nodo 1 y el coordinador. La máquina 2 contendrá físicamente el
+nodo 2.
+
+\subsection{1. Requisitos de hardware, software y red}
+
+\begin{itemize}
+  \item Dos computadoras con Windows 10 u 11, arquitectura de 64 bits.
+  \item Al menos 20 GB libres en la máquina 1 para datos descargados,
+        transformados, bases y respaldos.
+  \item Al menos 10 GB libres en la máquina 2 para el nodo 2 y su respaldo.
+  \item Ambas computadoras conectadas a la misma red local, de preferencia una
+        red privada y estable.
+  \item Permisos de administrador para instalar PostgreSQL y crear una regla
+        de Firewall.
+  \item Conexión a Internet durante la instalación y descarga de datos.
+\end{itemize}
+
+\subsection{2. Descargas oficiales}
+
+Se recomienda descargar únicamente desde los sitios oficiales:
+
+\begin{longtable}{p{0.23\textwidth}p{0.68\textwidth}}
+\toprule
+\textbf{Programa} & \textbf{Enlace y uso} \\
+\midrule
+Python para Windows &
+\url{https://www.python.org/downloads/windows/}. Se utilizó Python 3.12; una
+versión 3.12 compatible es la opción recomendada para reproducir el proyecto. \\
+PostgreSQL para Windows &
+\url{https://www.postgresql.org/download/windows/}. Elegir el instalador de
+EDB. El proyecto fue probado con PostgreSQL 17. \\
+pgAdmin 4 &
+\url{https://www.pgadmin.org/download/pgadmin-4-windows/}. Normalmente se
+incluye con el instalador de PostgreSQL, pero también puede instalarse por
+separado. \\
+Git para Windows &
+\url{https://git-scm.com/install/windows}. Permite clonar y actualizar el
+repositorio. No es obligatorio si se descarga el proyecto como ZIP. \\
+Visual Studio Code &
+\url{https://code.visualstudio.com/download}. Editor recomendado para abrir
+el proyecto, PowerShell y los archivos SQL. \\
+MiKTeX &
+\url{https://miktex.org/download}. Permite compilar la documentación LaTeX de
+forma local. \\
+Overleaf &
+\url{https://www.overleaf.com/learn/how-to/Uploading_a_project}. Alternativa
+en línea: permite subir directamente el ZIP de la documentación. \\
+\bottomrule
+\end{longtable}
+
+\subsection{3. Instalar Python en la máquina 1}
 
 \begin{enumerate}
-  \item Instalar Python, PostgreSQL 17 y pgAdmin 4.
-  \item Copiar el proyecto a \ruta{D:/BBD}.
-  \item Crear y activar el entorno virtual.
-  \item Ejecutar \ruta{pip install -r requirements.txt}.
-  \item Configurar \ruta{.env}.
-  \item Descargar, extraer y transformar los datos.
-  \item Crear \texttt{enoe\_centralizada} y ejecutar los scripts SQL centrales.
-  \item Ejecutar \ruta{load_centralized_db.py}.
-  \item Ejecutar \ruta{fragment_data.py}.
-  \item Crear \texttt{enoe\_nodo\_1}, \texttt{enoe\_nodo\_2} y
-        \texttt{enoe\_coordinador}.
-  \item Ejecutar \ruta{load_nodes.py} mientras ambos nodos sean locales.
-  \item Generar el respaldo del nodo 2 y transferirlo.
+  \item Abrir el instalador de Python.
+  \item Antes de continuar, marcar la casilla \textit{Add python.exe to PATH}.
+  \item Seleccionar \textit{Install Now} y esperar a que termine.
+  \item Cerrar y volver a abrir PowerShell.
+  \item Verificar la instalación:
 \end{enumerate}
 
-\subsection{Máquina 2}
+\begin{lstlisting}
+python --version
+python -m pip --version
+\end{lstlisting}
+
+Ambos comandos deben mostrar una versión y no el mensaje ``no se reconoce
+como un comando''. Python sólo es indispensable en la máquina 1, porque allí
+se descargarán, transformarán, fragmentarán y cargarán los datos.
+
+\subsection{4. Instalar PostgreSQL 17 y pgAdmin 4 en ambas máquinas}
 
 \begin{enumerate}
-  \item Instalar PostgreSQL 17 y pgAdmin 4.
-  \item Crear la base \texttt{enoe\_nodo\_2}.
-  \item Restaurar el respaldo con \texttt{pg\_restore}.
-  \item Configurar \texttt{listen\_addresses='*'}.
-  \item Agregar la IP de la máquina 1 en \texttt{pg\_hba.conf}.
-  \item Abrir TCP 5432 en el Firewall.
-  \item Reiniciar PostgreSQL.
-  \item Validar conteo y rango de entidades.
+  \item Ejecutar el instalador de PostgreSQL como administrador.
+  \item Instalar \textit{PostgreSQL Server}, \textit{pgAdmin 4} y
+        \textit{Command Line Tools}.
+  \item Conservar el directorio predeterminado
+        \ruta{C:/Program Files/PostgreSQL/17}.
+  \item Crear una contraseña para el usuario administrador
+        \texttt{postgres}. Debe guardarse de forma privada; no se escribe en
+        Git, capturas ni documentación pública.
+  \item Conservar el puerto predeterminado \texttt{5432}.
+  \item Terminar la instalación. Stack Builder es opcional y puede cerrarse.
 \end{enumerate}
 
-\subsection{Reconexión cuando cambian las IP}
+Para comprobar el servicio, abrir el menú Inicio, buscar \textit{Servicios} y
+verificar que \textit{postgresql-x64-17} aparezca como \textit{En ejecución}.
+También puede probarse desde PowerShell:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
+  -U postgres -h 127.0.0.1 -p 5432 -d postgres
+\end{lstlisting}
+
+Después de escribir la contraseña debe aparecer el indicador
+\texttt{postgres=\#}. Para salir se escribe \texttt{\textbackslash q}.
+
+\subsection{5. Registrar PostgreSQL local en pgAdmin}
 
 \begin{enumerate}
-  \item Ejecutar \texttt{ipconfig} en ambas máquinas.
-  \item Actualizar \texttt{pg\_hba.conf} en la máquina 2 con la IP de la máquina 1.
-  \item Reiniciar PostgreSQL en la máquina 2.
-  \item En el coordinador ejecutar:
+  \item Abrir pgAdmin 4 y definir la contraseña maestra que solicita la
+        aplicación. Esta contraseña protege las credenciales guardadas por
+        pgAdmin y no necesariamente es la misma de PostgreSQL.
+  \item En el panel izquierdo elegir \textit{Servers > Register > Server}.
+  \item En \textit{General}, escribir un nombre descriptivo, por ejemplo
+        \texttt{PostgreSQL 17 local}.
+  \item En \textit{Connection}, usar:
+        \texttt{Host name/address = 127.0.0.1},
+        \texttt{Port = 5432},
+        \texttt{Maintenance database = postgres} y
+        \texttt{Username = postgres}.
+  \item Escribir la contraseña local y guardar.
 \end{enumerate}
+
+\subsection{6. Obtener el proyecto en la máquina 1}
+
+\textbf{Opción A: clonar con Git.} Abrir PowerShell y ejecutar:
+
+\begin{lstlisting}
+git clone -b liz https://github.com/Berecast04/ProyectoBDD.git D:\BBD
+Set-Location D:\BBD
+\end{lstlisting}
+
+Cuando el contenido de la rama \texttt{liz} ya se encuentre integrado en
+\texttt{main}, puede utilizarse:
+
+\begin{lstlisting}
+git clone https://github.com/Berecast04/ProyectoBDD.git D:\BBD
+Set-Location D:\BBD
+\end{lstlisting}
+
+\textbf{Opción B: descargar ZIP.} Abrir
+\url{https://github.com/Berecast04/ProyectoBDD}, seleccionar
+\textit{Code > Download ZIP}, extraerlo y dejar el contenido del proyecto en
+\ruta{D:/BBD}. Al abrir PowerShell, cambiar de carpeta con
+\texttt{Set-Location D:\textbackslash BBD}; escribir únicamente la ruta no
+cambia el directorio activo.
+
+\subsection{7. Preparar el entorno de Python}
+
+Todos los comandos de esta subsección se ejecutan en
+\ruta{D:/BBD}, en la máquina 1:
+
+\begin{lstlisting}
+Set-Location D:\BBD
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+\end{lstlisting}
+
+Al activarse correctamente aparecerá \texttt{(.venv)} al inicio de la línea.
+Si PowerShell impide ejecutar el archivo de activación, abrir PowerShell como
+usuario normal y ejecutar una sola vez:
+
+\begin{lstlisting}
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+\end{lstlisting}
+
+Después cerrar PowerShell, abrirlo nuevamente, regresar a \ruta{D:/BBD} y
+activar el entorno. En sesiones futuras sólo será necesario:
+
+\begin{lstlisting}
+Set-Location D:\BBD
+.\.venv\Scripts\Activate.ps1
+\end{lstlisting}
+
+\subsection{8. Crear y configurar el archivo \texttt{.env}}
+
+En \ruta{D:/BBD} ejecutar:
+
+\begin{lstlisting}
+Copy-Item .env.example .env
+\end{lstlisting}
+
+Abrir \ruta{D:/BBD/.env} con Visual Studio Code y cambiar únicamente los
+valores necesarios:
+
+\begin{lstlisting}
+DB_USER=postgres
+DB_PASSWORD=CONTRASENA_POSTGRES_DE_LA_MAQUINA_1
+DB_HOST=localhost
+DB_PORT=5432
+DB_CENTRAL=enoe_centralizada
+DB_NODE_1=enoe_nodo_1
+DB_NODE_2=enoe_nodo_2
+DB_COORDINATOR=enoe_coordinador
+START_YEAR=2015
+END_YEAR=2024
+\end{lstlisting}
+
+No deben escribirse comillas alrededor de la contraseña. El archivo
+\texttt{.env} está excluido por \texttt{.gitignore}; nunca debe agregarse
+manualmente a Git ni enviarse junto con la documentación.
+
+\subsection{9. Descargar, extraer y transformar los datos ENOE}
+
+Con el entorno virtual activo y desde \ruta{D:/BBD}, ejecutar cada comando por
+separado y esperar a que termine:
+
+\begin{lstlisting}
+python src/download_enoe.py --start-year 2015 --end-year 2024
+python src/extract_enoe.py --start-year 2015 --end-year 2024
+python src/transform_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+La fuente oficial de los datos es
+\url{https://www.inegi.org.mx/programas/enoe/15ymas/#datos_abiertos}. Los ZIP
+se guardan en \ruta{data/raw}, los archivos extraídos en
+\ruta{data/extracted} y los Parquet transformados en
+\ruta{data/processed/parquet}. Estas carpetas no se publican en Git debido a
+su tamaño. Si una descarga se interrumpe, puede repetirse el mismo comando; el
+script reutiliza los archivos que ya estén completos.
+
+\subsection{10. Crear la base centralizada con pgAdmin}
+
+En pgAdmin, seleccionar la base \texttt{postgres}, abrir
+\textit{Tools > Query Tool}, usar el botón de carpeta para abrir el archivo
+\ruta{D:/BBD/sql/centralizado/01_create_database.sql} y presionar el botón
+Ejecutar. Después actualizar \textit{Databases} con clic derecho
+\textit{Refresh}; debe aparecer \texttt{enoe\_centralizada}.
+
+Cerrar esa pestaña y abrir un nuevo \textit{Query Tool} conectado
+específicamente a \texttt{enoe\_centralizada}. Ejecutar, en este orden:
+
+\begin{enumerate}
+  \item \ruta{sql/centralizado/02_create_schema.sql}
+  \item \ruta{sql/centralizado/03_create_tables.sql}
+  \item \ruta{sql/centralizado/04_constraints_indexes.sql}
+  \item \ruta{sql/centralizado/08_seed_catalogs.sql}
+\end{enumerate}
+
+Para abrir un SQL en pgAdmin se selecciona la base correcta, se abre
+\textit{Query Tool}, se pulsa el icono de carpeta, se elige el archivo y se
+ejecuta. No deben seleccionarse varios scripts a la vez.
+
+\subsection{11. Cargar y validar la base centralizada}
+
+Regresar a PowerShell, con \texttt{(.venv)} activo y en \ruta{D:/BBD}:
+
+\begin{lstlisting}
+python src/load_centralized_db.py --db enoe_centralizada
+\end{lstlisting}
+
+La carga puede tardar varios minutos. No cerrar PowerShell ni suspender el
+equipo. Al terminar, ejecutar en pgAdmin, dentro de
+\texttt{enoe\_centralizada}, el archivo
+\ruta{sql/centralizado/05_views.sql} y después
+\ruta{sql/centralizado/07_validaciones.sql}. Una validación mínima es:
+
+\begin{lstlisting}
+SELECT COUNT(*) AS total_centralizado
+FROM fact_ocupacion;
+\end{lstlisting}
+
+El resultado esperado del conjunto completo 2015--2024 es
+\texttt{15,645,061}. Si el número es distinto, revisar los años descargados y
+los mensajes de los scripts antes de continuar.
+
+\subsection{12. Crear las bases distribuidas}
+
+En pgAdmin, conectado a la base \texttt{postgres}, ejecutar
+\ruta{sql/distribuido/00_create_databases.sql}. Deben crearse:
+\texttt{enoe\_nodo\_1}, \texttt{enoe\_nodo\_2} y
+\texttt{enoe\_coordinador}.
+
+Después abrir un \textit{Query Tool} distinto para cada base:
+
+\begin{itemize}
+  \item En \texttt{enoe\_nodo\_1}, ejecutar
+        \ruta{sql/distribuido/nodo_1/01_create_tables.sql}.
+  \item En \texttt{enoe\_nodo\_2}, ejecutar
+        \ruta{sql/distribuido/nodo_2/01_create_tables.sql}.
+\end{itemize}
+
+En esta primera carga ambos nodos permanecen temporalmente en la máquina 1.
+Desde PowerShell ejecutar:
+
+\begin{lstlisting}
+python src/fragment_data.py --db enoe_centralizada
+python src/load_nodes.py --central enoe_centralizada
+\end{lstlisting}
+
+El primer script divide horizontalmente los hechos: entidades 1--16 para el
+nodo 1 y 17--32 para el nodo 2. El segundo copia dimensiones y hechos a cada
+base local. Validar en pgAdmin:
+
+\begin{lstlisting}
+-- Ejecutar en enoe_nodo_1
+SELECT MIN(id_entidad), MAX(id_entidad), COUNT(*)
+FROM fact_ocupacion;
+
+-- Ejecutar en enoe_nodo_2
+SELECT MIN(id_entidad), MAX(id_entidad), COUNT(*)
+FROM fact_ocupacion;
+\end{lstlisting}
+
+Los resultados esperados son:
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Base} & \textbf{Entidad mínima} & \textbf{Entidad máxima} &
+\textbf{Registros} \\
+\midrule
+\texttt{enoe\_nodo\_1} & 1 & 16 & 8,107,058 \\
+\texttt{enoe\_nodo\_2} & 17 & 32 & 7,538,003 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{13. Crear y transferir el respaldo del nodo 2}
+
+Crear la carpeta de respaldos en la máquina 1:
+
+\begin{lstlisting}
+New-Item -ItemType Directory -Force D:\BBD\backups\nodo_2
+\end{lstlisting}
+
+Ejecutar el respaldo con PostgreSQL en funcionamiento:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+  -U postgres -h 127.0.0.1 -p 5432 `
+  -F c -b -v `
+  -f "D:\BBD\backups\nodo_2\enoe_nodo_2.backup" `
+  enoe_nodo_2
+\end{lstlisting}
+
+Cuando termine sin errores, verificar el archivo:
+
+\begin{lstlisting}
+Get-Item D:\BBD\backups\nodo_2\enoe_nodo_2.backup
+\end{lstlisting}
+
+Copiar \texttt{enoe\_nodo\_2.backup} a la máquina 2 mediante memoria USB,
+Google Drive, OneDrive u otro medio que soporte archivos grandes. WhatsApp
+puede rechazarlo o alterar el flujo por el límite de tamaño, por lo que no es
+la opción recomendada para el respaldo completo.
+
+\subsection{14. Restaurar el nodo 2 en la máquina 2}
+
+En la máquina 2, crear una carpeta como \ruta{C:/BBD/backups} y colocar allí el
+archivo recibido. En pgAdmin, conectado a \texttt{postgres}, crear la base:
+
+\begin{lstlisting}
+CREATE DATABASE enoe_nodo_2;
+\end{lstlisting}
+
+Si la base ya existe y contiene una carga anterior, eliminarla únicamente
+después de confirmar que hay un respaldo válido. Para restaurar desde
+PowerShell:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" `
+  -U postgres -h 127.0.0.1 -p 5432 `
+  -d enoe_nodo_2 -v `
+  "C:\BBD\backups\enoe_nodo_2.backup"
+\end{lstlisting}
+
+En pgAdmin de la máquina 2 ejecutar:
+
+\begin{lstlisting}
+SELECT current_database(), COUNT(*) AS registros,
+       MIN(id_entidad), MAX(id_entidad)
+FROM fact_ocupacion;
+\end{lstlisting}
+
+Debe devolver la base \texttt{enoe\_nodo\_2}, 7,538,003 registros y el rango
+17--32.
+
+\subsection{15. Conocer las IP de ambas máquinas}
+
+Conectar ambos equipos a la misma red. En PowerShell de cada computadora
+ejecutar:
+
+\begin{lstlisting}
+ipconfig
+\end{lstlisting}
+
+Buscar la sección del adaptador Wi-Fi o Ethernet que esté conectado y anotar
+la \textit{Dirección IPv4}. No usar la dirección del adaptador Bluetooth,
+VPN ni un adaptador desconectado. Para la configuración se requieren:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Dato} & \textbf{Ejemplo usado} & \textbf{Uso} \\
+\midrule
+IP de máquina 1 & \texttt{10.106.235.149} &
+Autorizarla en \texttt{pg\_hba.conf}. \\
+IP de máquina 2 & \texttt{10.106.235.29} &
+Host remoto del coordinador. \\
+Puerto PostgreSQL & \texttt{5432} &
+Conexión TCP entre equipos. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Las IP del ejemplo pueden cambiar al reconectarse a la red. Siempre deben
+confirmarse con \texttt{ipconfig}.
+
+\subsection{16. Permitir conexiones PostgreSQL en la máquina 2}
+
+\subsubsection{16.1 Configurar \texttt{postgresql.conf}}
+
+Abrir como administrador el Bloc de notas y cargar
+\ruta{C:/Program Files/PostgreSQL/17/data/postgresql.conf}. Buscar
+\texttt{listen\_addresses} y dejar:
+
+\begin{lstlisting}
+listen_addresses = '*'
+\end{lstlisting}
+
+Guardar el archivo. Esto permite que PostgreSQL escuche conexiones de red y no
+solamente conexiones locales.
+
+\subsubsection{16.2 Configurar \texttt{pg\_hba.conf}}
+
+En el mismo directorio abrir \texttt{pg\_hba.conf} como administrador y
+agregar al final una línea con la IP real de la máquina 1:
+
+\begin{lstlisting}
+host    enoe_nodo_2    postgres    IP_MAQUINA_1/32    scram-sha-256
+\end{lstlisting}
+
+Ejemplo:
+
+\begin{lstlisting}
+host    enoe_nodo_2    postgres    10.106.235.149/32    scram-sha-256
+\end{lstlisting}
+
+\texttt{/32} autoriza únicamente esa computadora. No se recomienda
+\texttt{0.0.0.0/0}, porque permitiría intentos de conexión desde cualquier
+dirección.
+
+\subsubsection{16.3 Abrir el Firewall de Windows de forma visual}
+
+\begin{enumerate}
+  \item En la máquina 2 abrir \textit{Seguridad de Windows}.
+  \item Entrar en \textit{Firewall y protección de red}.
+  \item Seleccionar \textit{Configuración avanzada}.
+  \item Elegir \textit{Reglas de entrada} y después \textit{Nueva regla}.
+  \item Seleccionar \textit{Puerto}.
+  \item Marcar \textit{TCP} y escribir \texttt{5432} en
+        \textit{Puertos locales específicos}.
+  \item Seleccionar \textit{Permitir la conexión}.
+  \item Marcar solamente el perfil de red utilizado; normalmente
+        \textit{Privado}. Evitar \textit{Público} cuando no sea necesario.
+  \item Nombrar la regla \texttt{PostgreSQL 17 TCP 5432} y finalizar.
+\end{enumerate}
+
+\subsubsection{16.4 Reiniciar PostgreSQL}
+
+Abrir \textit{Servicios}, localizar \textit{postgresql-x64-17}, hacer clic
+derecho y elegir \textit{Reiniciar}. Este paso aplica los cambios de los dos
+archivos de configuración.
+
+\subsection{17. Probar la conexión de máquina 1 a máquina 2}
+
+En PowerShell de la máquina 1 sustituir la IP por la dirección actual de la
+máquina 2:
+
+\begin{lstlisting}
+Test-NetConnection 10.106.235.29 -Port 5432
+\end{lstlisting}
+
+El resultado correcto contiene \texttt{TcpTestSucceeded : True}. Después
+realizar una prueba directa de PostgreSQL:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
+  -h 10.106.235.29 -p 5432 -U postgres -d enoe_nodo_2 `
+  -c "SELECT current_database(), inet_server_addr(), COUNT(*) FROM fact_ocupacion;"
+\end{lstlisting}
+
+La contraseña solicitada es la del usuario \texttt{postgres} de la máquina 2,
+no la de la máquina 1. Si aparece el conteo del nodo 2, la consulta está
+leyendo físicamente PostgreSQL de la otra computadora.
+
+\subsection{18. Configurar el coordinador con \texttt{postgres\_fdw}}
+
+Antes de ejecutar
+\ruta{sql/distribuido/coordinador/01_fdw_config.sql}, crear una copia local
+temporal o editarla sin guardar credenciales en Git. Sustituir:
+
+\begin{itemize}
+  \item \texttt{IP\_NODO\_2} por la IP actual de la máquina 2.
+  \item \texttt{PASSWORD\_NODO\_1} por la contraseña local de máquina 1.
+  \item \texttt{PASSWORD\_NODO\_2} por la contraseña PostgreSQL de máquina 2.
+\end{itemize}
+
+En pgAdmin de la máquina 1 abrir un \textit{Query Tool} conectado a
+\texttt{enoe\_coordinador} y ejecutar, en orden:
+
+\begin{enumerate}
+  \item \ruta{sql/distribuido/coordinador/01_fdw_config.sql}
+  \item \ruta{sql/distribuido/coordinador/02_foreign_tables.sql}
+  \item \ruta{sql/distribuido/coordinador/03_views_globales.sql}
+\end{enumerate}
+
+Comprobar los servidores:
+
+\begin{lstlisting}
+SELECT srvname, srvoptions
+FROM pg_foreign_server
+ORDER BY srvname;
+\end{lstlisting}
+
+Comprobar el acceso a cada fragmento:
+
+\begin{lstlisting}
+SELECT 1 AS nodo, COUNT(*) FROM fact_ocupacion_nodo_1
+UNION ALL
+SELECT 2 AS nodo, COUNT(*) FROM fact_ocupacion_nodo_2
+ORDER BY nodo;
+\end{lstlisting}
+
+La segunda fila sólo puede obtenerse si el coordinador logra comunicarse con
+el PostgreSQL remoto de la máquina 2.
+
+\subsection{19. Actualizar la conexión cuando cambia la IP}
+
+Si los equipos se desconectan o cambian de red, repetir \texttt{ipconfig}. En
+la máquina 2 debe actualizarse la IP autorizada en \texttt{pg\_hba.conf} si
+cambió la máquina 1, y después reiniciar PostgreSQL.
+
+Si cambió la IP de la máquina 2, ejecutar en
+\texttt{enoe\_coordinador}, desde la máquina 1:
 
 \begin{lstlisting}
 ALTER SERVER enoe_nodo_2_srv
 OPTIONS (SET host 'IP_NUEVA_MAQUINA_2');
 \end{lstlisting}
 
-Después verificar:
+Verificar el cambio y repetir las pruebas de red:
 
 \begin{lstlisting}
 SELECT srvname, srvoptions
@@ -846,20 +1338,207 @@ FROM pg_foreign_server
 WHERE srvname = 'enoe_nodo_2_srv';
 \end{lstlisting}
 
-\subsection{Pruebas finales}
-
 \begin{lstlisting}
-SELECT COUNT(*) FROM fact_ocupacion_nodo_1;
-SELECT COUNT(*) FROM fact_ocupacion_nodo_2;
+Test-NetConnection IP_NUEVA_MAQUINA_2 -Port 5432
 \end{lstlisting}
 
-Luego ejecutar por separado las consultas de:
+\subsection{20. Ejecutar las diez consultas comparativas}
+
+En pgAdmin de la máquina 1:
+
+\begin{enumerate}
+  \item Seleccionar \texttt{enoe\_centralizada}, abrir \textit{Query Tool} y
+        cargar
+        \ruta{sql/comparacion/01_consultas_centralizadas.sql}.
+  \item Seleccionar únicamente una consulta completa, desde
+        \texttt{EXPLAIN} hasta su punto y coma, y ejecutarla.
+  \item Registrar el \texttt{Execution Time} mostrado al final del plan.
+  \item Ejecutar la misma consulta tres veces. La primera ejecución sirve para
+        calentar caché; se recomienda comparar el promedio de la segunda y
+        tercera.
+  \item Seleccionar \texttt{enoe\_coordinador}, abrir otro
+        \textit{Query Tool} y cargar
+        \ruta{sql/comparacion/02_consultas_distribuidas.sql}.
+  \item Ejecutar la consulta equivalente, también tres veces y en las mismas
+        condiciones.
+\end{enumerate}
+
+No debe ejecutarse el archivo completo en un solo bloque, porque varias
+consultas recorren millones de filas y la medición dejaría de representar una
+prueba individual. Las consultas distribuidas deben agregar primero dentro de
+cada nodo y combinar después resultados pequeños; consultar toda la vista
+global antes de agrupar transfiere demasiadas filas por red y explica los
+tiempos de 13 o 17 minutos observados al inicio.
+
+\subsection{21. Validar equivalencia centralizada y distribuida}
+
+Con ambas máquinas conectadas y el coordinador funcionando, ejecutar:
+
+\begin{lstlisting}
+python src/validate_distribution.py
+\end{lstlisting}
+
+El script compara conteo total, conteo por año, conteo por entidad y suma del
+factor de expansión. Genera
+\ruta{docs/resultados_validacion.md}. Cada comprobación debe mostrar
+\texttt{OK}. También puede verificarse manualmente que:
+
+\begin{lstlisting}
+SELECT
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_1) AS total_nodo_1,
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_2) AS total_nodo_2,
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_1) +
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_2) AS total_distribuido;
+\end{lstlisting}
+
+El total distribuido esperado es \texttt{15,645,061}, igual que la base
+centralizada.
+
+\subsection{22. Crear los respaldos finales}
+
+Crear las carpetas en la máquina 1:
+
+\begin{lstlisting}
+New-Item -ItemType Directory -Force D:\BBD\backups\centralizada
+New-Item -ItemType Directory -Force D:\BBD\backups\nodo_1
+New-Item -ItemType Directory -Force D:\BBD\backups\coordinador
+\end{lstlisting}
+
+Respaldar cada base local:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "D:\BBD\backups\centralizada\enoe_centralizada.backup" `
+ enoe_centralizada
+
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "D:\BBD\backups\nodo_1\enoe_nodo_1.backup" `
+ enoe_nodo_1
+
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "D:\BBD\backups\coordinador\enoe_coordinador.backup" `
+ enoe_coordinador
+\end{lstlisting}
+
+El respaldo definitivo de \texttt{enoe\_nodo\_2} se recomienda ejecutarlo
+localmente en la máquina 2. Así no depende de que una transferencia de varios
+millones de registros permanezca estable:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "C:\BBD\backups\enoe_nodo_2.backup" `
+ enoe_nodo_2
+\end{lstlisting}
+
+La entrega requiere al menos tres respaldos: centralizada y dos distribuidos.
+Se conservan además el coordinador y sus scripts para reproducir toda la
+arquitectura. Verificar que cada archivo exista, tenga un tamaño mayor que
+cero y que \texttt{pg\_dump} finalice sin error.
+
+\subsection{23. Restaurar un respaldo para comprobarlo}
+
+Para una prueba de restauración se crea una base vacía con otro nombre:
+
+\begin{lstlisting}
+CREATE DATABASE enoe_nodo_1_prueba_restore;
+\end{lstlisting}
+
+Después, desde PowerShell:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 `
+ -d enoe_nodo_1_prueba_restore -v `
+ "D:\BBD\backups\nodo_1\enoe_nodo_1.backup"
+\end{lstlisting}
+
+Finalmente se compara el conteo con el original. Esta prueba confirma que el
+archivo no sólo existe, sino que puede recuperarse.
+
+\subsection{24. Compilar la documentación}
+
+\textbf{Con Overleaf:} entrar a \url{https://www.overleaf.com}, seleccionar
+\textit{New Project > Upload Project}, subir
+\ruta{docs/proyecto_enoe_bdd_latex.zip}, abrir
+\ruta{proyecto_enoe_bdd.tex} y pulsar \textit{Recompile}. El ZIP contiene el
+archivo principal, consultas y todas las figuras.
+
+\textbf{Con MiKTeX:} instalar MiKTeX, permitir la instalación automática de
+paquetes faltantes y ejecutar dos veces, desde
+\ruta{D:/BBD/docs/latex_entrega}:
+
+\begin{lstlisting}
+pdflatex proyecto_enoe_bdd.tex
+pdflatex proyecto_enoe_bdd.tex
+\end{lstlisting}
+
+La segunda compilación actualiza el índice y las referencias.
+
+\subsection{25. Errores frecuentes y diagnóstico rápido}
+
+\begin{longtable}{p{0.31\textwidth}p{0.61\textwidth}}
+\toprule
+\textbf{Mensaje o síntoma} & \textbf{Qué revisar} \\
+\midrule
+\texttt{python no se reconoce} &
+Reinstalar Python marcando \textit{Add python.exe to PATH} o cerrar y abrir
+PowerShell. \\
+\texttt{psql} o \texttt{pg\_dump no se reconoce} &
+Usar la ruta completa
+\ruta{C:/Program Files/PostgreSQL/17/bin/psql.exe}, como en esta guía. \\
+\texttt{password authentication failed} &
+La red sí llegó al servidor, pero la contraseña no corresponde al usuario
+\texttt{postgres} del equipo de destino. \\
+\texttt{no hay una línea en pg\_hba.conf} &
+Agregar en la máquina 2 la IP actual de la máquina 1 con \texttt{/32} y
+reiniciar PostgreSQL. \\
+\texttt{Connection timed out} &
+Revisar que ambos equipos estén en la misma red, la IP actual, el servicio,
+\texttt{listen\_addresses}, el Firewall y
+\texttt{Test-NetConnection}. \\
+\texttt{DestinationHostUnreachable} &
+La IP no es alcanzable desde la red actual. Confirmar \texttt{ipconfig} en
+ambos equipos y desactivar temporalmente VPN o adaptadores que interfieran. \\
+\texttt{secuencia de bytes no válida para UTF8} &
+En PowerShell establecer
+\texttt{\$env:PGCLIENTENCODING="WIN1252"} para esa sesión o ejecutar la
+consulta desde pgAdmin. \\
+\texttt{'NoneType' object has no attribute 'query'} en pgAdmin &
+Seleccionar únicamente una sentencia SQL completa y volver a ejecutarla. Si
+persiste, cerrar y abrir el \textit{Query Tool}; suele ser un problema de la
+interfaz, no del servidor. \\
+Consulta distribuida excesivamente lenta &
+Confirmar la red y usar agregación por nodo antes de \texttt{UNION ALL}.
+Evitar transferir la vista global completa para luego agruparla. \\
+\texttt{pg\_dump}: el servidor cerró la conexión &
+Comprobar que PostgreSQL continúe en ejecución, que el equipo no se suspenda y
+crear el respaldo del nodo 2 localmente en la máquina 2. \\
+\bottomrule
+\end{longtable}
+
+\subsection{26. Lista final de comprobación}
+
+Antes de entregar, verificar:
 
 \begin{itemize}
-  \item \ruta{consultas/01_consultas_centralizadas.sql} en
-        \texttt{enoe\_centralizada}.
-  \item \ruta{consultas/02_consultas_distribuidas.sql} en
-        \texttt{enoe\_coordinador}.
+  \item La base centralizada contiene 15,645,061 registros.
+  \item El nodo 1 contiene 8,107,058 registros de entidades 1--16.
+  \item El nodo 2 remoto contiene 7,538,003 registros de entidades 17--32.
+  \item \texttt{Test-NetConnection} devuelve
+        \texttt{TcpTestSucceeded : True}.
+  \item El coordinador consulta correctamente ambos nodos.
+  \item Las diez consultas centralizadas y sus diez equivalentes distribuidas
+        tienen tiempos registrados.
+  \item Las validaciones centrales y distribuidas producen resultados
+        equivalentes.
+  \item Existen respaldos válidos de la centralizada, nodo 1 y nodo 2.
+  \item El archivo \texttt{.env}, contraseñas, datos pesados y respaldos no se
+        publicaron en Git.
+  \item El ZIP de LaTeX compila y contiene todas las evidencias.
 \end{itemize}
 
 \section{Problemas encontrados y soluciones}
