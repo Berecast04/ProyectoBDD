@@ -109,6 +109,7 @@
     \textbf{Profesor:} & Rosas Hernández Javier\\
     \textbf{Integrantes:} & Hernández Castillo Fernanda Berenice\\
                           & Ramírez Muñoz Gloria Lizbeth\\
+                          & Simón Aranda Zahir Hassan\\
     \textbf{Repositorio:} &
     \href{https://github.com/Berecast04/ProyectoBDD.git}
     {github.com/Berecast04/ProyectoBDD}\\
