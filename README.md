@@ -1,74 +1,74 @@
 # Proyecto ENOE - Bases de Datos Distribuidas
 
-Sistema para descargar, transformar, cargar y validar datos historicos de la Encuesta Nacional de Ocupacion y Empleo (ENOE) del INEGI en una base centralizada PostgreSQL y despues en un esquema distribuido con dos nodos y un coordinador `postgres_fdw`.
+Proyecto académico que procesa datos históricos de la Encuesta Nacional de
+Ocupación y Empleo (ENOE) del INEGI y compara una base PostgreSQL centralizada
+contra una arquitectura distribuida con dos nodos y un coordinador
+`postgres_fdw`.
 
-Fuente oficial: https://www.inegi.org.mx/programas/enoe/15ymas/#datos_abiertos
+Fuente oficial:
+https://www.inegi.org.mx/programas/enoe/15ymas/#datos_abiertos
 
-## Arquitectura
+## Resultado
 
-1. Descarga de ZIP oficiales a `data/raw/`.
-2. Extraccion a `data/extracted/`.
-3. Transformacion a Parquet por anio/trimestre en `data/parquet/`.
-4. Carga OLTP centralizada en `enoe_centralizada`.
-5. Fragmentacion horizontal de `fact_ocupacion` por entidad federativa.
-6. Carga de `enoe_nodo_1` y `enoe_nodo_2`.
-7. Coordinacion con `enoe_coordinador` usando `postgres_fdw`.
-8. Validacion centralizada vs distribuida.
+- Periodo procesado: 2015-2024.
+- Total centralizado: 15,645,061 registros.
+- Nodo 1: entidades 1-16, con 8,107,058 registros.
+- Nodo 2: entidades 17-32, con 7,538,003 registros.
+- Coordinador: integra un nodo local y otro PostgreSQL remoto.
+- Comparación: centralizada ganó 6 de 10 pruebas; distribuida ganó 4.
 
-## Instalacion
+## Requisitos
 
-```bash
+- Python 3.12 o compatible.
+- PostgreSQL 17 y pgAdmin 4.
+- Dos computadoras en la misma red para la demostración distribuida.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-copy .env.example .env
+Copy-Item .env.example .env
 ```
 
-Edita `.env` con tu usuario y password de PostgreSQL.
+Edita `.env` con tus credenciales locales. El archivo `.env` no se publica.
 
-## Orden de ejecucion
+## Flujo de datos
 
-```bash
+```powershell
 python src/download_enoe.py --start-year 2015 --end-year 2024
 python src/extract_enoe.py --start-year 2015 --end-year 2024
 python src/transform_enoe.py --start-year 2015 --end-year 2024
-```
-
-En pgAdmin o `psql`, crea y prepara la base centralizada:
-
-```sql
-\i sql/centralizado/01_create_database.sql
-\c enoe_centralizada
-\i sql/centralizado/02_create_schema.sql
-\i sql/centralizado/03_create_tables.sql
-\i sql/centralizado/04_constraints_indexes.sql
-\i sql/centralizado/08_seed_catalogs.sql
-\i sql/centralizado/05_views.sql
-```
-
-Despues:
-
-```bash
 python src/load_centralized_db.py --db enoe_centralizada
 python src/fragment_data.py
 python src/load_nodes.py
-python src/validate_distribution.py
 ```
 
-Para el esquema distribuido, crea las bases con `sql/distribuido/00_create_databases.sql`, ejecuta `sql/distribuido/nodo_1/01_create_tables.sql` en `enoe_nodo_1`, `sql/distribuido/nodo_2/01_create_tables.sql` en `enoe_nodo_2`, y en `enoe_coordinador` ejecuta:
+Los datos descargados, DBF, Parquet, logs y respaldos se generan localmente y
+están excluidos del repositorio por tamaño y seguridad.
 
-```sql
-\i sql/distribuido/coordinador/01_fdw_config.sql
-\i sql/distribuido/coordinador/02_foreign_tables.sql
-\i sql/distribuido/coordinador/03_views_globales.sql
-```
+## SQL
 
-## Evidencia sugerida
+1. Crea la base central con `sql/centralizado/`.
+2. Crea las bases distribuidas con `sql/distribuido/00_create_databases.sql`.
+3. Prepara cada nodo con sus scripts `01_create_tables.sql`.
+4. Edita los valores de ejemplo de
+   `sql/distribuido/coordinador/01_fdw_config.sql`.
+5. Ejecuta en el coordinador los scripts `01`, `02` y `03`.
 
-Captura la descarga con barras de progreso, archivos Parquet generados, tablas en pgAdmin, conteos centralizados, conteos por nodo, vistas globales del coordinador, consultas centralizadas y distribuidas con el mismo resultado, y archivos de respaldo.
+Las diez pruebas comparativas están en:
 
-La evidencia de carga centralizada ya documentada esta en `docs/evidencia_ejecucion.md`.
+- `sql/comparacion/01_consultas_centralizadas.sql`
+- `sql/comparacion/02_consultas_distribuidas.sql`
 
-## Problemas comunes
+## Documentación
 
-- Si INEGI cambia el HTML, agrega URLs ZIP oficiales a `config/enoe_urls.json` y ejecuta con `--manual-only`.
-- Si una columna no aparece, `transform_enoe.py` la deja como nula y el modelo conserva la carga.
-- Ajusta los catalogos de dimensiones cuando revises los diccionarios oficiales del periodo descargado.
+La documentación oficial y vigente está en
+[`docs/latex_entrega/proyecto_enoe_bdd.tex`](docs/latex_entrega/proyecto_enoe_bdd.tex).
+Incluye instalación desde cero, las 82 evidencias, consultas, tiempos,
+validación, respaldos y conclusiones.
+
+## Datos y respaldos
+
+Este repositorio no incluye los datos ENOE ni archivos `.backup`. Se regeneran
+con los scripts del proyecto. Esto evita publicar varios gigabytes y mantiene
+fuera del historial credenciales y artefactos locales.

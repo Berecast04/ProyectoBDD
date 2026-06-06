@@ -1,0 +1,1596 @@
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{url}
+
+\geometry{margin=2.3cm}
+\graphicspath{{figuras/}}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  citecolor=black,
+  pdftitle={Proyecto ENOE: base centralizada y distribuida}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Bases de Datos Distribuidas}
+\rhead{Proyecto ENOE}
+\cfoot{\thepage}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\renewcommand{\arraystretch}{1.18}
+
+\definecolor{sqlblue}{RGB}{0,68,136}
+\definecolor{sqlgreen}{RGB}{0,110,70}
+\definecolor{sqlgray}{RGB}{245,245,245}
+\lstdefinestyle{sqlstyle}{
+  language=SQL,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{sqlblue}\bfseries,
+  commentstyle=\color{sqlgreen},
+  backgroundcolor=\color{sqlgray},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible,
+  showstringspaces=false
+}
+\lstset{style=sqlstyle}
+
+\newcommand{\ruta}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\evidencia}[2]{
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth,height=0.72\textheight,keepaspectratio]{#1}
+    \caption{#2}
+  \end{figure}
+}
+\newcommand{\evidenciapar}[4]{
+  \begin{figure}[H]
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{#1}
+      \par\smallskip{\small #2}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.48\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{#3}
+      \par\smallskip{\small #4}
+    \end{minipage}
+  \end{figure}
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \begin{minipage}{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.82\linewidth]{evidencia_001.jpg}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.42\textwidth}
+    \centering
+    \includegraphics[width=0.95\linewidth]{evidencia_002.jpg}
+  \end{minipage}
+
+  \vspace{1.2cm}
+  {\Large\bfseries Universidad Nacional Autónoma de México\par}
+  \vspace{0.25cm}
+  {\large Facultad de Estudios Superiores Acatlán\par}
+  \vspace{0.7cm}
+  {\large Matemáticas Aplicadas y Computación\par}
+  \vfill
+  {\Huge\bfseries Proyecto de Bases de Datos Distribuidas\par}
+  \vspace{0.5cm}
+  {\LARGE Análisis centralizado y distribuido de la ENOE\par}
+  \vfill
+  \begin{tabular}{rl}
+    \textbf{Materia:} & Bases de Datos Distribuidas\\
+    \textbf{Profesor:} & Rosas Hernández Javier\\
+    \textbf{Integrantes:} & Hernández Castillo [completar nombre]\\
+                          & Ramírez Muñoz Gloria Lizbeth\\
+    \textbf{Fecha:} & Junio de 2026
+  \end{tabular}
+  \vfill
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+\section{Resumen}
+
+Este proyecto construye y compara dos formas de almacenar y consultar datos
+históricos de la Encuesta Nacional de Ocupación y Empleo (ENOE): una base de
+datos centralizada y una base de datos distribuida en dos computadoras. La
+fuente utilizada fue el portal oficial del Instituto Nacional de Estadística y
+Geografía (INEGI), con información del periodo 2015--2024.
+
+El proceso completo incluyó descarga de archivos, extracción de ZIP, lectura de
+DBF, transformación a Parquet, diseño centralizado normalizado, carga en
+PostgreSQL, fragmentación horizontal por entidad federativa, restauración de un
+nodo en una segunda máquina, configuración de \texttt{postgres\_fdw},
+consultas distribuidas, validación y respaldos.
+
+La comparación de diez consultas mostró que la base centralizada fue más rápida
+en seis casos y la distribuida en cuatro. La conclusión no es que una
+arquitectura sea siempre superior: la centralizada resultó más conveniente
+para consultas globales simples, mientras que la distribuida obtuvo ventajas
+cuando la consulta coincidió con la fragmentación o cada nodo realizó una
+agregación parcial antes de enviar su resultado.
+
+\section{Requisitos de la práctica}
+
+La práctica solicitó los siguientes elementos:
+
+\begin{enumerate}[label=\arabic*.]
+  \item Fuente real: ENOE, población de 15 años y más, con histórico superior a cinco años.
+  \item Diseño centralizado OLTP normalizado hasta tercera forma normal y modelo entidad--relación.
+  \item Al menos cinco consultas centralizadas.
+  \item Análisis para transformar el sistema en una base distribuida.
+  \item Diseño de la distribución.
+  \item Distribución o fragmentación de los datos.
+  \item Modificación de cinco consultas centralizadas para obtener versiones distribuidas equivalentes.
+  \item Al menos cinco consultas distribuidas nuevas.
+  \item Validación de la base distribuida contra la base centralizada.
+  \item Entrega del trabajo escrito, scripts y por lo menos tres respaldos: centralizado y dos nodos.
+\end{enumerate}
+
+Todos estos puntos se cubren en las secciones siguientes.
+
+\section{Conceptos básicos para una persona sin experiencia}
+
+\subsection{¿Qué es una base de datos?}
+
+Una base de datos es un conjunto organizado de información. PostgreSQL es el
+programa que almacena esa información y permite consultarla mediante SQL. SQL
+es el lenguaje usado para pedir datos, por ejemplo contar registros o agrupar
+personas por entidad federativa.
+
+\subsection{Base centralizada}
+
+En una base centralizada todos los datos se encuentran en un solo servidor. En
+este proyecto esa base se llama \texttt{enoe\_centralizada}. Su ventaja es la
+simplicidad: una sola computadora administra toda la información. Su
+desventaja es que el almacenamiento y procesamiento se concentran en un único
+equipo.
+
+\subsection{Base distribuida}
+
+En una base distribuida los datos se reparten entre varias computadoras. Para
+este proyecto, las entidades 1 a 16 se almacenaron en el nodo 1 y las entidades
+17 a 32 en el nodo 2. Un coordinador permite consultar ambos nodos desde un
+solo punto.
+
+\subsection{Fragmentación horizontal}
+
+Fragmentar horizontalmente significa dividir las filas de una tabla usando una
+regla. La tabla conserva las mismas columnas, pero cada nodo guarda filas
+diferentes:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Nodo} & \textbf{Regla} & \textbf{Ubicación}\\
+\midrule
+Nodo 1 & \texttt{id\_entidad} entre 1 y 16 & Máquina principal\\
+Nodo 2 & \texttt{id\_entidad} entre 17 y 32 & Máquina remota\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Coordinador y tablas foráneas}
+
+La extensión \texttt{postgres\_fdw} permite crear tablas foráneas. Una tabla
+foránea parece local, pero sus datos se encuentran en otro PostgreSQL. En este
+proyecto, \texttt{fact\_ocupacion\_nodo\_2} apunta a la computadora del segundo
+nodo.
+
+\section{Requerimientos de instalación}
+
+\subsection{Equipo recomendado}
+
+\begin{itemize}
+  \item Dos computadoras con Windows 10 u 11 de 64 bits.
+  \item Al menos 8 GB de memoria RAM; 16 GB es recomendable.
+  \item Al menos 30 GB libres para datos, bases y respaldos.
+  \item Ambas computadoras conectadas a la misma red local.
+  \item Evitar suspensión, cambio de red o VPN durante consultas y respaldos.
+\end{itemize}
+
+\subsection{Programas para la máquina principal}
+
+\begin{itemize}
+  \item Python 3.12 o compatible.
+  \item PostgreSQL 17.
+  \item pgAdmin 4.
+  \item Visual Studio Code o Cursor, opcional pero recomendado.
+  \item Git, opcional si el proyecto se transfiere como carpeta.
+  \item MiKTeX o TeX Live para compilar esta documentación.
+\end{itemize}
+
+\subsection{Programas para la máquina del nodo 2}
+
+\begin{itemize}
+  \item PostgreSQL 17.
+  \item pgAdmin 4.
+  \item Python no es obligatorio si únicamente se restaura y publica el nodo.
+\end{itemize}
+
+\subsection{Librerías Python}
+
+Desde PowerShell, dentro de la carpeta del proyecto:
+
+\begin{lstlisting}[language=bash]
+cd D:\BBD
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+\end{lstlisting}
+
+El archivo \ruta{requirements.txt} instala, entre otras, las librerías
+\texttt{pandas}, \texttt{pyarrow}, \texttt{requests}, \texttt{tqdm},
+\texttt{SQLAlchemy}, \texttt{psycopg2}, \texttt{python-dotenv} y
+\texttt{dbfread}.
+
+\subsection{Configuración de variables}
+
+El archivo \ruta{.env} guarda valores que cambian entre computadoras, como el
+usuario, la contraseña y los nombres de las bases. El proyecto incluye
+\ruta{.env.example}, que funciona como plantilla y no contiene credenciales
+reales.
+
+En PowerShell, desde la raíz del proyecto, crear la copia:
+
+\begin{lstlisting}[language=bash]
+Copy-Item .env.example .env
+\end{lstlisting}
+
+Después abrir \ruta{.env} con un editor de texto y configurar:
+
+\begin{lstlisting}[language=bash]
+DB_USER=postgres
+DB_PASSWORD=CAMBIAR_POR_PASSWORD_LOCAL
+DB_HOST=localhost
+DB_PORT=5432
+DB_CENTRAL=enoe_centralizada
+DB_NODE_1=enoe_nodo_1
+DB_NODE_2=enoe_nodo_2
+DB_COORDINATOR=enoe_coordinador
+START_YEAR=2015
+END_YEAR=2024
+\end{lstlisting}
+
+\begin{itemize}
+  \item \texttt{DB\_USER}: usuario de PostgreSQL; normalmente es
+        \texttt{postgres}.
+  \item \texttt{DB\_PASSWORD}: contraseña elegida durante la instalación de
+        PostgreSQL en esa computadora.
+  \item \texttt{DB\_HOST}: se deja como \texttt{localhost} para las bases
+        locales.
+  \item \texttt{DB\_PORT}: PostgreSQL usa normalmente el puerto \texttt{5432}.
+  \item \texttt{DB\_CENTRAL}, \texttt{DB\_NODE\_1},
+        \texttt{DB\_NODE\_2} y \texttt{DB\_COORDINATOR}: nombres de las bases
+        utilizadas por los scripts.
+  \item \texttt{START\_YEAR} y \texttt{END\_YEAR}: periodo histórico a
+        procesar.
+\end{itemize}
+
+\textbf{Ejemplo:} si la persona eligió una contraseña propia al instalar
+PostgreSQL, debe escribirla únicamente en su archivo local:
+
+\begin{lstlisting}[language=bash]
+DB_PASSWORD=CONTRASENA_ELEGIDA_POR_EL_USUARIO
+\end{lstlisting}
+
+El archivo \ruta{.env} está incluido en \ruta{.gitignore}; por lo tanto, no se
+sube a GitHub. Solo se publica \ruta{.env.example}, que conserva marcadores de
+ejemplo. Tampoco deben colocarse contraseñas reales en capturas, documentos,
+scripts SQL o mensajes compartidos.
+
+\subsection{Credenciales del coordinador distribuido}
+
+El script \ruta{sql/distribuido/coordinador/01_fdw_config.sql} contiene estos
+marcadores:
+
+\begin{lstlisting}
+OPTIONS (host 'IP_NODO_2', dbname 'enoe_nodo_2', port '5432');
+OPTIONS (user 'postgres', password 'PASSWORD_NODO_1');
+OPTIONS (user 'postgres', password 'PASSWORD_NODO_2');
+\end{lstlisting}
+
+Antes de ejecutarlo, cada equipo debe sustituir los marcadores en su copia
+local. No se debe guardar ni publicar el script con contraseñas reales. Una vez
+creado el \texttt{USER MAPPING}, PostgreSQL almacena internamente la información
+necesaria para la conexión.
+
+\section{Fuente y preparación de los datos}
+
+La fuente oficial fue:
+
+\begin{center}
+\url{https://www.inegi.org.mx/programas/enoe/15ymas/\#datos_abiertos}
+\end{center}
+
+Se procesaron diez años, de 2015 a 2024. Los archivos originales se guardaron
+en \ruta{data/raw}, los archivos extraídos en \ruta{data/extracted} y los
+Parquet en \ruta{data/parquet}.
+
+\subsection{Descarga}
+
+\begin{lstlisting}[language=bash]
+python src/download_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+\evidenciapar{evidencia_003.png}{Descarga de archivos oficiales y avance por periodos.}
+{evidencia_004.png}{Continuación del proceso de descarga con barras de progreso.}
+\evidencia{evidencia_005.png}{Finalización de la descarga histórica de la ENOE.}
+
+\subsection{Extracción de ZIP}
+
+\begin{lstlisting}[language=bash]
+python src/extract_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+\evidencia{evidencia_006.png}{Ejecución del script de extracción de archivos ZIP.}
+
+\subsection{Transformación a Parquet}
+
+\begin{lstlisting}[language=bash]
+python src/transform_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+\evidenciapar{evidencia_007.png}{Transformación de archivos ENOE a Parquet.}
+{evidencia_008.png}{Procesamiento por año y trimestre.}
+\evidenciapar{evidencia_009.png}{Continuación de la transformación histórica.}
+{evidencia_010.png}{Finalización de archivos Parquet del periodo 2015--2024.}
+
+\section{Diseño centralizado}
+
+\subsection{Modelo}
+
+La base \texttt{enoe\_centralizada} usa una tabla de hechos
+\texttt{fact\_ocupacion} y dimensiones para tiempo, entidad, municipio, sexo,
+edad, nivel educativo, condición de ocupación, sector y posición laboral.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Tabla} & \textbf{Propósito}\\
+\midrule
+\texttt{dim\_tiempo} & Año y trimestre.\\
+\texttt{dim\_entidad} & Entidades federativas.\\
+\texttt{dim\_municipio} & Municipios.\\
+\texttt{dim\_sexo} & Catálogo de sexo.\\
+\texttt{dim\_edad} & Edad o grupo de edad.\\
+\texttt{dim\_nivel\_educativo} & Nivel de estudios.\\
+\texttt{dim\_condicion\_ocupacion} & Condición laboral.\\
+\texttt{dim\_sector\_actividad} & Sector económico.\\
+\texttt{dim\_posicion\_ocupacion} & Posición en la ocupación.\\
+\texttt{fact\_ocupacion} & Llaves foráneas y métricas: factor, horas e ingreso.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+La separación de catálogos evita repetir descripciones en millones de filas.
+Cada dimensión tiene una llave primaria y la tabla de hechos contiene llaves
+foráneas, lo que permite justificar la tercera forma normal.
+
+\subsection{Creación y carga}
+
+En pgAdmin se crea la base y se ejecutan, en orden:
+
+\begin{enumerate}
+  \item \ruta{sql/centralizado/01_create_database.sql}
+  \item \ruta{sql/centralizado/02_create_schema.sql}
+  \item \ruta{sql/centralizado/03_create_tables.sql}
+  \item \ruta{sql/centralizado/04_constraints_indexes.sql}
+  \item \ruta{sql/centralizado/08_seed_catalogs.sql}
+  \item \ruta{sql/centralizado/05_views.sql}
+\end{enumerate}
+
+Después:
+
+\begin{lstlisting}[language=bash]
+python src/load_centralized_db.py --db enoe_centralizada
+\end{lstlisting}
+
+\evidencia{evidencia_011.png}{Validación del total de registros en la base centralizada.}
+
+El resultado final fue de \textbf{15,645,061 registros}.
+
+\section{Fragmentación y carga de nodos}
+
+\begin{lstlisting}[language=bash]
+python src/fragment_data.py
+python src/load_nodes.py
+\end{lstlisting}
+
+\evidencia{evidencia_012.jpg}{Fragmentación horizontal: total central, nodo 1 y nodo 2.}
+\evidenciapar{evidencia_013.png}{Conteo del nodo 1: 8,107,058 registros.}
+{evidencia_014.png}{Conteo del nodo 2: 7,538,003 registros.}
+
+La suma de ambos nodos es:
+
+\[
+8\,107\,058 + 7\,538\,003 = 15\,645\,061.
+\]
+
+\section{Configuración inicial del coordinador}
+
+Se crea la extensión \texttt{postgres\_fdw}, los servidores foráneos y los
+usuarios de conexión.
+
+\evidencia{evidencia_015.png}{Ejecución inicial de la configuración FDW.}
+
+\section{Creación del nodo 2 en la segunda computadora}
+
+En la máquina 2 se instala PostgreSQL y se crea:
+
+\begin{lstlisting}
+CREATE DATABASE enoe_nodo_2;
+\end{lstlisting}
+
+\evidencia{evidencia_016.png}{Creación de la base enoe\_nodo\_2 en la segunda computadora.}
+
+El fragmento se transfirió mediante respaldo y se restauró en la máquina 2.
+
+\evidencia{evidencia_017.png}{Restauración y creación de objetos del nodo 2.}
+\evidenciapar{evidencia_018.png}{Conteo y rango de entidades en la máquina 2.}
+{evidencia_019.png}{Validación: el nodo 2 contiene entidades 17 a 32.}
+
+\section{Conexión de las dos computadoras}
+
+\subsection{Direcciones IP documentadas}
+
+Las direcciones son dinámicas: pueden cambiar al reconectar el Wi-Fi. Por ello,
+deben verificarse siempre con \texttt{ipconfig}.
+
+\begin{table}[H]
+\centering
+\caption{Direcciones IP observadas durante las sesiones de evidencia.}
+\begin{tabular}{llll}
+\toprule
+\textbf{Sesión} & \textbf{Equipo} & \textbf{IP} & \textbf{Función}\\
+\midrule
+Sesión original & Máquina 1 & 10.225.183.149 & Central, nodo 1 y coordinador\\
+Sesión original & Máquina 2 & 10.225.183.29 & Nodo 2 remoto\\
+Reconexión posterior & Máquina 1 & 10.106.235.149 & Central, nodo 1 y coordinador\\
+Reconexión posterior & Máquina 2 & 10.106.235.29 & Nodo 2 remoto\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\evidenciapar{evidencia_020.png}{Dirección IPv4 de la máquina principal.}
+{evidencia_021.png}{Dirección IPv4 de la máquina del nodo 2.}
+
+\subsection{PostgreSQL remoto}
+
+En la máquina 2 se modifica \ruta{postgresql.conf}:
+
+\begin{lstlisting}
+listen_addresses = '*'
+\end{lstlisting}
+
+En \ruta{pg_hba.conf} se agrega la IP actual de la máquina 1:
+
+\begin{lstlisting}
+host    enoe_nodo_2    postgres    10.225.183.149/32    md5
+\end{lstlisting}
+
+Para una instalación actual es preferible \texttt{scram-sha-256} si el usuario
+y el servidor están configurados para ese método.
+
+\evidencia{evidencia_022.png}{Regla agregada en pg\_hba.conf para autorizar la máquina 1.}
+
+También se abre el puerto TCP 5432 en el Firewall de Windows de la máquina 2 y
+se reinicia el servicio \texttt{postgresql-x64-17}.
+
+\subsection{Prueba de conectividad}
+
+Desde la máquina 1:
+
+\begin{lstlisting}[language=bash]
+Test-NetConnection 10.225.183.29 -Port 5432
+\end{lstlisting}
+
+\evidencia{evidencia_023.png}{Prueba exitosa del puerto 5432: TcpTestSucceeded=True.}
+
+\subsection{Prueba directa con psql}
+
+\begin{lstlisting}[language=bash]
+psql -h 10.225.183.29 -p 5432 -U postgres -d enoe_nodo_2
+\end{lstlisting}
+
+\evidencia{evidencia_024.png}{Conexión desde la máquina 1 al PostgreSQL de la máquina 2.}
+\evidenciapar{evidencia_025.png}{Conteo remoto del nodo 2: 7,538,003.}
+{evidencia_026.png}{Rango remoto: entidades 17 a 32.}
+
+\section{Coordinador definitivo}
+
+\subsection{Tablas y servidores foráneos}
+
+\evidencia{evidencia_027.png}{Listado de tablas foráneas registradas en el coordinador.}
+\evidencia{evidencia_028.png}{Servidores FDW: nodo 1 local y nodo 2 remoto.}
+
+La evidencia muestra que \texttt{enoe\_nodo\_2\_srv} apunta a una IP externa,
+por lo que \texttt{fact\_ocupacion\_nodo\_2} no es una copia local.
+
+\subsection{Recreación de objetos}
+
+\evidencia{evidencia_029.png}{Limpieza de objetos previos del coordinador.}
+\evidenciapar{evidencia_030.png}{Creación de extensión, servidores y user mappings.}
+{evidencia_031.png}{Creación e importación de tablas foráneas.}
+\evidenciapar{evidencia_032.png}{Creación de vistas globales.}
+{evidencia_033.png}{Conteo del nodo 2 consultado mediante el coordinador.}
+
+\section{Consultas centralizadas iniciales}
+
+Las consultas se ejecutan en \texttt{enoe\_centralizada}. En ellas se simula el
+criterio de fragmentación mediante rangos de \texttt{id\_entidad}.
+
+\evidencia{evidencia_034.jpg}{Consulta centralizada: conteo por fragmento lógico.}
+\evidencia{evidencia_035.jpg}{Consulta centralizada: validación del rango de entidades.}
+\evidencia{evidencia_036.jpg}{Consulta centralizada: total de 15,645,061 registros.}
+\evidencia{evidencia_037.jpg}{Consulta centralizada: registros por año y fragmento lógico.}
+\evidencia{evidencia_038.jpg}{Consulta centralizada: condición de ocupación por fragmento.}
+\evidencia{evidencia_039.jpg}{Consulta centralizada: población ponderada por fragmento.}
+\evidenciapar{evidencia_040.jpg}{Consulta centralizada preparada con EXPLAIN ANALYZE.}
+{evidencia_041.jpg}{Plan y tiempo de ejecución centralizado.}
+
+\section{Vista global y problema de rendimiento}
+
+La primera estrategia creó una vista global:
+
+\begin{lstlisting}
+CREATE VIEW vw_fact_ocupacion_global AS
+SELECT *, 1 AS nodo_origen FROM fact_ocupacion_nodo_1
+UNION ALL
+SELECT *, 2 AS nodo_origen FROM fact_ocupacion_nodo_2;
+\end{lstlisting}
+
+La vista es correcta desde el punto de vista lógico, pero una consulta global
+puede obligar al coordinador a procesar o transferir millones de filas antes de
+agruparlas. La evidencia registró una consulta de aproximadamente 13 minutos.
+
+\evidencia{evidencia_042.png}{Consulta global del coordinador con tiempo elevado.}
+
+La solución fue mantener el coordinador, pero consultar cada tabla foránea con
+agregaciones parciales. Así, cada nodo procesa sus datos y el coordinador recibe
+solamente pocas filas.
+
+\section{Consultas distribuidas optimizadas}
+
+\evidencia{evidencia_043.jpg}{Conteo directo por nodo mediante tablas foráneas.}
+\evidencia{evidencia_044.jpg}{Validación distribuida del rango de entidades.}
+\evidencia{evidencia_045.jpg}{Suma de fragmentos y total distribuido.}
+\evidenciapar{evidencia_046.jpg}{Consulta distribuida por periodo usando agregación parcial.}
+{evidencia_047.png}{Resultado por periodo y nodo.}
+\evidencia{evidencia_048.jpg}{Registros por entidad federativa en cada nodo.}
+\evidenciapar{evidencia_049.jpg}{Consulta por condición de ocupación y nodo.}
+{evidencia_050.png}{Resultado agregado de condición de ocupación.}
+\evidencia{evidencia_051.jpg}{Plan y tiempo de una consulta distribuida optimizada.}
+
+\section{Respaldos}
+
+Los respaldos se generan con \texttt{pg\_dump} en formato personalizado
+(\texttt{-F c}). Se respaldan la base centralizada, los dos nodos y el
+coordinador.
+
+\subsection{Centralizada}
+
+\evidenciapar{evidencia_052.png}{Creación de la carpeta para el respaldo centralizado.}
+{evidencia_053.png}{Ejecución del respaldo de enoe\_centralizada.}
+
+\subsection{Nodo 1}
+
+\evidenciapar{evidencia_054.png}{Creación de la carpeta de respaldo del nodo 1.}
+{evidencia_055.png}{Ejecución del respaldo de enoe\_nodo\_1.}
+
+\subsection{Nodo 2}
+
+Para evitar una interrupción de red, el respaldo del nodo 2 puede realizarse
+localmente en la segunda computadora y transferirse después.
+
+\evidenciapar{evidencia_056.png}{Creación de la carpeta de respaldos en la máquina 2.}
+{evidencia_057.png}{Ejecución local del respaldo del nodo 2.}
+\evidencia{evidencia_058.png}{Archivo de respaldo del nodo 2 generado correctamente.}
+
+\subsection{Coordinador}
+
+\evidenciapar{evidencia_059.png}{Creación de la carpeta de respaldo del coordinador.}
+{evidencia_060.png}{Ejecución del respaldo de enoe\_coordinador.}
+
+\section{Metodología de comparación de rendimiento}
+
+Se compararon diez pares de consultas equivalentes. Cada consulta se ejecutó
+tres veces:
+
+\begin{enumerate}
+  \item La primera ejecución se consideró calentamiento de caché.
+  \item Se registraron las ejecuciones 2 y 3.
+  \item Se calculó su promedio.
+  \item Se confirmó que centralizada y distribuida devolvieran resultados equivalentes.
+\end{enumerate}
+
+Los valores mostrados por pgAdmin tienen formato
+\texttt{hh:mm:ss.sss}; por ello, los resultados de la tabla se expresan en
+\textbf{segundos}, no en milisegundos.
+
+La mejora distribuida se calculó como:
+
+\[
+\text{Mejora} =
+\frac{T_{\text{central}}-T_{\text{distribuido}}}
+{T_{\text{central}}}\times 100.
+\]
+
+Un porcentaje positivo favorece a la base distribuida; uno negativo favorece a
+la centralizada.
+
+\section{Evidencias de las diez comparaciones}
+
+\subsection{Consulta 1: conteo total global}
+
+\evidenciapar{evidencia_061.png}{Centralizada: 15,645,061 registros en 0.970 s.}
+{evidencia_062.png}{Distribuida: mismo total en 2.862 s.}
+
+\subsection{Consulta 2: conteo por fragmento o nodo}
+
+\evidenciapar{evidencia_063.png}{Centralizada: fragmentos lógicos en 3.671 s.}
+{evidencia_064.png}{Distribuida: nodos físicos en 2.454 s.}
+
+\subsection{Consulta 3: conteo por entidad}
+
+\evidenciapar{evidencia_065.png}{Centralizada: conteo por las 32 entidades en 3.247 s.}
+{evidencia_066.png}{Distribuida: agregación parcial por entidad en 3.482 s.}
+
+\subsection{Consulta 4: conteo por año}
+
+\evidenciapar{evidencia_067.png}{Centralizada: conteo 2015--2024 en 2.808 s.}
+{evidencia_068.png}{Distribuida: conteos parciales integrados en 2.855 s.}
+
+\subsection{Consulta 5: población ponderada de 2024}
+
+\evidenciapar{evidencia_069.png}{Centralizada: población ponderada 2024 en 1.330 s.}
+{evidencia_070.png}{Distribuida: agregación por nodo en 1.099 s.}
+
+\subsection{Consulta 6: condición de ocupación por nodo}
+
+\evidenciapar{evidencia_071.png}{Centralizada: condición de ocupación en 3.010 s.}
+{evidencia_072.png}{Distribuida: condición por nodo en 3.372 s.}
+
+\subsection{Consulta 7: distribución por sexo y nodo}
+
+\evidenciapar{evidencia_073.png}{Centralizada: agrupación por sexo en 3.081 s.}
+{evidencia_074.png}{Distribuida: agregación por sexo en 2.903 s.}
+
+\subsection{Consulta 8: promedio de horas trabajadas}
+
+\evidenciapar{evidencia_075.png}{Centralizada: promedio de horas en 3.489 s.}
+{evidencia_076.png}{Distribuida: suma y conteo parciales en 6.814 s.}
+
+\subsection{Consulta 9: tres entidades con más registros de 2024 por nodo}
+
+\evidenciapar{evidencia_077.png}{Centralizada: ranking por fragmento en 3.138 s.}
+{evidencia_078.png}{Resultado centralizado del ranking.}
+\evidenciapar{evidencia_079.png}{Distribuida: cada nodo devuelve solamente su top 3.}
+{evidencia_080.png}{Resultado distribuido en 0.698 s.}
+
+\subsection{Consulta 10: condición de ocupación en entidades 17 y 18}
+
+\evidenciapar{evidencia_081.png}{Centralizada: entidades 17 y 18 en 1.143 s.}
+{evidencia_082.png}{Distribuida: consulta directa al nodo 2 en 1.212 s.}
+
+\section{Resultados cuantitativos}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Comparación de tiempos observados.}
+\begin{tabular}{clrrrr}
+\toprule
+\textbf{No.} & \textbf{Consulta} & \textbf{Central (s)} &
+\textbf{Distrib. (s)} & \textbf{Mejora (\%)} & \textbf{Ganadora}\\
+\midrule
+1 & Conteo total global & 0.970 & 2.862 & -195.05 & Centralizada\\
+2 & Conteo por nodo & 3.671 & 2.454 & 33.15 & Distribuida\\
+3 & Conteo por entidad & 3.247 & 3.482 & -7.24 & Centralizada\\
+4 & Conteo por año & 2.808 & 2.855 & -1.67 & Centralizada\\
+5 & Población ponderada 2024 & 1.330 & 1.099 & 17.37 & Distribuida\\
+6 & Condición de ocupación & 3.010 & 3.372 & -12.03 & Centralizada\\
+7 & Sexo por nodo & 3.081 & 2.903 & 5.78 & Distribuida\\
+8 & Promedio de horas & 3.489 & 6.814 & -95.30 & Centralizada\\
+9 & Top 3 por nodo & 3.138 & 0.698 & 77.76 & Distribuida\\
+10 & Entidades 17 y 18 & 1.143 & 1.212 & -6.04 & Centralizada\\
+\midrule
+ & \textbf{Promedio} & \textbf{2.589} & \textbf{2.775} &
+\textbf{-7.20} & \textbf{Centralizada}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La centralizada ganó seis consultas y la distribuida cuatro. El promedio
+centralizado fue 2.589 s y el distribuido 2.775 s; en este ambiente concreto,
+la centralizada fue aproximadamente 7.2\% más rápida en promedio.
+
+\section{Interpretación}
+
+\subsection{Cuándo fue mejor la centralizada}
+
+La centralizada destacó en el conteo global, conteos generales, condición de
+ocupación y promedio de horas. Estas operaciones requieren recorrer gran parte
+de los datos y la base centralizada evita la latencia de red y la coordinación
+entre dos servidores.
+
+La consulta 8 fue especialmente desfavorable para la distribuida. Calcular un
+promedio global correctamente requiere que cada nodo produzca suma y cantidad,
+y que el coordinador combine ambos valores. El costo de los escaneos remotos y
+la red superó el beneficio del paralelismo.
+
+\subsection{Cuándo fue mejor la distribuida}
+
+La distribuida ganó en consultas 2, 5, 7 y 9. La mayor ventaja apareció en la
+consulta 9, con 77.76\% de mejora. Cada nodo filtró 2024, agrupó sus propias
+entidades y devolvió solamente tres filas. Este patrón aprovecha correctamente
+la distribución: el procesamiento se acerca a los datos y se reduce la
+transferencia.
+
+La consulta 10 accedió únicamente al nodo 2 porque las entidades 17 y 18
+pertenecen a ese fragmento. Aunque el tiempo fue ligeramente mayor que el
+centralizado, la diferencia fue pequeña. La latencia de la red local explica
+que una consulta remota corta no necesariamente sea más rápida, aun cuando
+acceda al nodo correcto.
+
+\section{Conclusión}
+
+Con base en las diez pruebas, la base centralizada es la opción más conveniente
+si el sistema se ejecutará en una sola computadora y la mayoría de las
+consultas necesita recorrer toda la información. En este experimento fue más
+rápida en seis de diez consultas y obtuvo un promedio global 7.2\% menor.
+También es más sencilla de instalar, respaldar y administrar.
+
+La base distribuida no debe considerarse incorrecta ni inútil. Su principal
+ventaja apareció en consultas alineadas con la fragmentación y en agregaciones
+parciales. La consulta 9 demostró que puede superar ampliamente a la
+centralizada cuando cada nodo procesa localmente y devuelve pocos resultados.
+Además, aporta separación física, disponibilidad organizacional y posibilidad
+de crecimiento horizontal.
+
+Por lo tanto, la conclusión adecuada es:
+
+\begin{quote}
+\textbf{Para el entorno de prueba actual y consultas predominantemente
+globales, la base centralizada ofrece el mejor rendimiento promedio y menor
+complejidad. La base distribuida es preferible cuando las consultas son
+regionales, coinciden con el criterio de fragmentación o el volumen futuro
+requiere repartir almacenamiento y procesamiento entre varios equipos.}
+\end{quote}
+
+No existe una arquitectura universalmente mejor. La decisión depende del
+patrón real de consultas, la estabilidad de la red, la ubicación de los
+usuarios, el crecimiento de los datos y los requisitos de disponibilidad.
+
+\section{Guía completa de ejecución desde cero}
+
+Esta guía está dirigida a una persona que no tiene instalado PostgreSQL,
+Python ni las herramientas del proyecto. Todos los comandos se muestran para
+Windows PowerShell. La máquina 1 será el equipo principal: contendrá la base
+centralizada, el nodo 1 y el coordinador. La máquina 2 contendrá físicamente el
+nodo 2.
+
+\subsection{1. Requisitos de hardware, software y red}
+
+\begin{itemize}
+  \item Dos computadoras con Windows 10 u 11, arquitectura de 64 bits.
+  \item Al menos 20 GB libres en la máquina 1 para datos descargados,
+        transformados, bases y respaldos.
+  \item Al menos 10 GB libres en la máquina 2 para el nodo 2 y su respaldo.
+  \item Ambas computadoras conectadas a la misma red local, de preferencia una
+        red privada y estable.
+  \item Permisos de administrador para instalar PostgreSQL y crear una regla
+        de Firewall.
+  \item Conexión a Internet durante la instalación y descarga de datos.
+\end{itemize}
+
+\subsection{2. Descargas oficiales}
+
+Se recomienda descargar únicamente desde los sitios oficiales:
+
+\begin{longtable}{p{0.23\textwidth}p{0.68\textwidth}}
+\toprule
+\textbf{Programa} & \textbf{Enlace y uso} \\
+\midrule
+Python para Windows &
+\url{https://www.python.org/downloads/windows/}. Se utilizó Python 3.12; una
+versión 3.12 compatible es la opción recomendada para reproducir el proyecto. \\
+PostgreSQL para Windows &
+\url{https://www.postgresql.org/download/windows/}. Elegir el instalador de
+EDB. El proyecto fue probado con PostgreSQL 17. \\
+pgAdmin 4 &
+\url{https://www.pgadmin.org/download/pgadmin-4-windows/}. Normalmente se
+incluye con el instalador de PostgreSQL, pero también puede instalarse por
+separado. \\
+Git para Windows &
+\url{https://git-scm.com/install/windows}. Permite clonar y actualizar el
+repositorio. No es obligatorio si se descarga el proyecto como ZIP. \\
+Visual Studio Code &
+\url{https://code.visualstudio.com/download}. Editor recomendado para abrir
+el proyecto, PowerShell y los archivos SQL. \\
+MiKTeX &
+\url{https://miktex.org/download}. Permite compilar la documentación LaTeX de
+forma local. \\
+Overleaf &
+\url{https://www.overleaf.com/learn/how-to/Uploading_a_project}. Alternativa
+en línea: permite subir directamente el ZIP de la documentación. \\
+\bottomrule
+\end{longtable}
+
+\subsection{3. Instalar Python en la máquina 1}
+
+\begin{enumerate}
+  \item Abrir el instalador de Python.
+  \item Antes de continuar, marcar la casilla \textit{Add python.exe to PATH}.
+  \item Seleccionar \textit{Install Now} y esperar a que termine.
+  \item Cerrar y volver a abrir PowerShell.
+  \item Verificar la instalación:
+\end{enumerate}
+
+\begin{lstlisting}
+python --version
+python -m pip --version
+\end{lstlisting}
+
+Ambos comandos deben mostrar una versión y no el mensaje ``no se reconoce
+como un comando''. Python sólo es indispensable en la máquina 1, porque allí
+se descargarán, transformarán, fragmentarán y cargarán los datos.
+
+\subsection{4. Instalar PostgreSQL 17 y pgAdmin 4 en ambas máquinas}
+
+\begin{enumerate}
+  \item Ejecutar el instalador de PostgreSQL como administrador.
+  \item Instalar \textit{PostgreSQL Server}, \textit{pgAdmin 4} y
+        \textit{Command Line Tools}.
+  \item Conservar el directorio predeterminado
+        \ruta{C:/Program Files/PostgreSQL/17}.
+  \item Crear una contraseña para el usuario administrador
+        \texttt{postgres}. Debe guardarse de forma privada; no se escribe en
+        Git, capturas ni documentación pública.
+  \item Conservar el puerto predeterminado \texttt{5432}.
+  \item Terminar la instalación. Stack Builder es opcional y puede cerrarse.
+\end{enumerate}
+
+Para comprobar el servicio, abrir el menú Inicio, buscar \textit{Servicios} y
+verificar que \textit{postgresql-x64-17} aparezca como \textit{En ejecución}.
+También puede probarse desde PowerShell:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
+  -U postgres -h 127.0.0.1 -p 5432 -d postgres
+\end{lstlisting}
+
+Después de escribir la contraseña debe aparecer el indicador
+\texttt{postgres=\#}. Para salir se escribe \texttt{\textbackslash q}.
+
+\subsection{5. Registrar PostgreSQL local en pgAdmin}
+
+\begin{enumerate}
+  \item Abrir pgAdmin 4 y definir la contraseña maestra que solicita la
+        aplicación. Esta contraseña protege las credenciales guardadas por
+        pgAdmin y no necesariamente es la misma de PostgreSQL.
+  \item En el panel izquierdo elegir \textit{Servers > Register > Server}.
+  \item En \textit{General}, escribir un nombre descriptivo, por ejemplo
+        \texttt{PostgreSQL 17 local}.
+  \item En \textit{Connection}, usar:
+        \texttt{Host name/address = 127.0.0.1},
+        \texttt{Port = 5432},
+        \texttt{Maintenance database = postgres} y
+        \texttt{Username = postgres}.
+  \item Escribir la contraseña local y guardar.
+\end{enumerate}
+
+\subsection{6. Obtener el proyecto en la máquina 1}
+
+\textbf{Opción A: clonar con Git.} Abrir PowerShell y ejecutar:
+
+\begin{lstlisting}
+git clone -b liz https://github.com/Berecast04/ProyectoBDD.git D:\BBD
+Set-Location D:\BBD
+\end{lstlisting}
+
+Cuando el contenido de la rama \texttt{liz} ya se encuentre integrado en
+\texttt{main}, puede utilizarse:
+
+\begin{lstlisting}
+git clone https://github.com/Berecast04/ProyectoBDD.git D:\BBD
+Set-Location D:\BBD
+\end{lstlisting}
+
+\textbf{Opción B: descargar ZIP.} Abrir
+\url{https://github.com/Berecast04/ProyectoBDD}, seleccionar
+\textit{Code > Download ZIP}, extraerlo y dejar el contenido del proyecto en
+\ruta{D:/BBD}. Al abrir PowerShell, cambiar de carpeta con
+\texttt{Set-Location D:\textbackslash BBD}; escribir únicamente la ruta no
+cambia el directorio activo.
+
+\subsection{7. Preparar el entorno de Python}
+
+Todos los comandos de esta subsección se ejecutan en
+\ruta{D:/BBD}, en la máquina 1:
+
+\begin{lstlisting}
+Set-Location D:\BBD
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+\end{lstlisting}
+
+Al activarse correctamente aparecerá \texttt{(.venv)} al inicio de la línea.
+Si PowerShell impide ejecutar el archivo de activación, abrir PowerShell como
+usuario normal y ejecutar una sola vez:
+
+\begin{lstlisting}
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+\end{lstlisting}
+
+Después cerrar PowerShell, abrirlo nuevamente, regresar a \ruta{D:/BBD} y
+activar el entorno. En sesiones futuras sólo será necesario:
+
+\begin{lstlisting}
+Set-Location D:\BBD
+.\.venv\Scripts\Activate.ps1
+\end{lstlisting}
+
+\subsection{8. Crear y configurar el archivo \texttt{.env}}
+
+En \ruta{D:/BBD} ejecutar:
+
+\begin{lstlisting}
+Copy-Item .env.example .env
+\end{lstlisting}
+
+Abrir \ruta{D:/BBD/.env} con Visual Studio Code y cambiar únicamente los
+valores necesarios:
+
+\begin{lstlisting}
+DB_USER=postgres
+DB_PASSWORD=CONTRASENA_POSTGRES_DE_LA_MAQUINA_1
+DB_HOST=localhost
+DB_PORT=5432
+DB_CENTRAL=enoe_centralizada
+DB_NODE_1=enoe_nodo_1
+DB_NODE_2=enoe_nodo_2
+DB_COORDINATOR=enoe_coordinador
+START_YEAR=2015
+END_YEAR=2024
+\end{lstlisting}
+
+No deben escribirse comillas alrededor de la contraseña. El archivo
+\texttt{.env} está excluido por \texttt{.gitignore}; nunca debe agregarse
+manualmente a Git ni enviarse junto con la documentación.
+
+\subsection{9. Descargar, extraer y transformar los datos ENOE}
+
+Con el entorno virtual activo y desde \ruta{D:/BBD}, ejecutar cada comando por
+separado y esperar a que termine:
+
+\begin{lstlisting}
+python src/download_enoe.py --start-year 2015 --end-year 2024
+python src/extract_enoe.py --start-year 2015 --end-year 2024
+python src/transform_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+La fuente oficial de los datos es
+\url{https://www.inegi.org.mx/programas/enoe/15ymas/#datos_abiertos}. Los ZIP
+se guardan en \ruta{data/raw}, los archivos extraídos en
+\ruta{data/extracted} y los Parquet transformados en
+\ruta{data/processed/parquet}. Estas carpetas no se publican en Git debido a
+su tamaño. Si una descarga se interrumpe, puede repetirse el mismo comando; el
+script reutiliza los archivos que ya estén completos.
+
+\subsection{10. Crear la base centralizada con pgAdmin}
+
+En pgAdmin, seleccionar la base \texttt{postgres}, abrir
+\textit{Tools > Query Tool}, usar el botón de carpeta para abrir el archivo
+\ruta{D:/BBD/sql/centralizado/01_create_database.sql} y presionar el botón
+Ejecutar. Después actualizar \textit{Databases} con clic derecho
+\textit{Refresh}; debe aparecer \texttt{enoe\_centralizada}.
+
+Cerrar esa pestaña y abrir un nuevo \textit{Query Tool} conectado
+específicamente a \texttt{enoe\_centralizada}. Ejecutar, en este orden:
+
+\begin{enumerate}
+  \item \ruta{sql/centralizado/02_create_schema.sql}
+  \item \ruta{sql/centralizado/03_create_tables.sql}
+  \item \ruta{sql/centralizado/04_constraints_indexes.sql}
+  \item \ruta{sql/centralizado/08_seed_catalogs.sql}
+\end{enumerate}
+
+Para abrir un SQL en pgAdmin se selecciona la base correcta, se abre
+\textit{Query Tool}, se pulsa el icono de carpeta, se elige el archivo y se
+ejecuta. No deben seleccionarse varios scripts a la vez.
+
+\subsection{11. Cargar y validar la base centralizada}
+
+Regresar a PowerShell, con \texttt{(.venv)} activo y en \ruta{D:/BBD}:
+
+\begin{lstlisting}
+python src/load_centralized_db.py --db enoe_centralizada
+\end{lstlisting}
+
+La carga puede tardar varios minutos. No cerrar PowerShell ni suspender el
+equipo. Al terminar, ejecutar en pgAdmin, dentro de
+\texttt{enoe\_centralizada}, el archivo
+\ruta{sql/centralizado/05_views.sql} y después
+\ruta{sql/centralizado/07_validaciones.sql}. Una validación mínima es:
+
+\begin{lstlisting}
+SELECT COUNT(*) AS total_centralizado
+FROM fact_ocupacion;
+\end{lstlisting}
+
+El resultado esperado del conjunto completo 2015--2024 es
+\texttt{15,645,061}. Si el número es distinto, revisar los años descargados y
+los mensajes de los scripts antes de continuar.
+
+\subsection{12. Crear las bases distribuidas}
+
+En pgAdmin, conectado a la base \texttt{postgres}, ejecutar
+\ruta{sql/distribuido/00_create_databases.sql}. Deben crearse:
+\texttt{enoe\_nodo\_1}, \texttt{enoe\_nodo\_2} y
+\texttt{enoe\_coordinador}.
+
+Después abrir un \textit{Query Tool} distinto para cada base:
+
+\begin{itemize}
+  \item En \texttt{enoe\_nodo\_1}, ejecutar
+        \ruta{sql/distribuido/nodo_1/01_create_tables.sql}.
+  \item En \texttt{enoe\_nodo\_2}, ejecutar
+        \ruta{sql/distribuido/nodo_2/01_create_tables.sql}.
+\end{itemize}
+
+En esta primera carga ambos nodos permanecen temporalmente en la máquina 1.
+Desde PowerShell ejecutar:
+
+\begin{lstlisting}
+python src/fragment_data.py --db enoe_centralizada
+python src/load_nodes.py --central enoe_centralizada
+\end{lstlisting}
+
+El primer script divide horizontalmente los hechos: entidades 1--16 para el
+nodo 1 y 17--32 para el nodo 2. El segundo copia dimensiones y hechos a cada
+base local. Validar en pgAdmin:
+
+\begin{lstlisting}
+-- Ejecutar en enoe_nodo_1
+SELECT MIN(id_entidad), MAX(id_entidad), COUNT(*)
+FROM fact_ocupacion;
+
+-- Ejecutar en enoe_nodo_2
+SELECT MIN(id_entidad), MAX(id_entidad), COUNT(*)
+FROM fact_ocupacion;
+\end{lstlisting}
+
+Los resultados esperados son:
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Base} & \textbf{Entidad mínima} & \textbf{Entidad máxima} &
+\textbf{Registros} \\
+\midrule
+\texttt{enoe\_nodo\_1} & 1 & 16 & 8,107,058 \\
+\texttt{enoe\_nodo\_2} & 17 & 32 & 7,538,003 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{13. Crear y transferir el respaldo del nodo 2}
+
+Crear la carpeta de respaldos en la máquina 1:
+
+\begin{lstlisting}
+New-Item -ItemType Directory -Force D:\BBD\backups\nodo_2
+\end{lstlisting}
+
+Ejecutar el respaldo con PostgreSQL en funcionamiento:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+  -U postgres -h 127.0.0.1 -p 5432 `
+  -F c -b -v `
+  -f "D:\BBD\backups\nodo_2\enoe_nodo_2.backup" `
+  enoe_nodo_2
+\end{lstlisting}
+
+Cuando termine sin errores, verificar el archivo:
+
+\begin{lstlisting}
+Get-Item D:\BBD\backups\nodo_2\enoe_nodo_2.backup
+\end{lstlisting}
+
+Copiar \texttt{enoe\_nodo\_2.backup} a la máquina 2 mediante memoria USB,
+Google Drive, OneDrive u otro medio que soporte archivos grandes. WhatsApp
+puede rechazarlo o alterar el flujo por el límite de tamaño, por lo que no es
+la opción recomendada para el respaldo completo.
+
+\subsection{14. Restaurar el nodo 2 en la máquina 2}
+
+En la máquina 2, crear una carpeta como \ruta{C:/BBD/backups} y colocar allí el
+archivo recibido. En pgAdmin, conectado a \texttt{postgres}, crear la base:
+
+\begin{lstlisting}
+CREATE DATABASE enoe_nodo_2;
+\end{lstlisting}
+
+Si la base ya existe y contiene una carga anterior, eliminarla únicamente
+después de confirmar que hay un respaldo válido. Para restaurar desde
+PowerShell:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" `
+  -U postgres -h 127.0.0.1 -p 5432 `
+  -d enoe_nodo_2 -v `
+  "C:\BBD\backups\enoe_nodo_2.backup"
+\end{lstlisting}
+
+En pgAdmin de la máquina 2 ejecutar:
+
+\begin{lstlisting}
+SELECT current_database(), COUNT(*) AS registros,
+       MIN(id_entidad), MAX(id_entidad)
+FROM fact_ocupacion;
+\end{lstlisting}
+
+Debe devolver la base \texttt{enoe\_nodo\_2}, 7,538,003 registros y el rango
+17--32.
+
+\subsection{15. Conocer las IP de ambas máquinas}
+
+Conectar ambos equipos a la misma red. En PowerShell de cada computadora
+ejecutar:
+
+\begin{lstlisting}
+ipconfig
+\end{lstlisting}
+
+Buscar la sección del adaptador Wi-Fi o Ethernet que esté conectado y anotar
+la \textit{Dirección IPv4}. No usar la dirección del adaptador Bluetooth,
+VPN ni un adaptador desconectado. Para la configuración se requieren:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Dato} & \textbf{Ejemplo usado} & \textbf{Uso} \\
+\midrule
+IP de máquina 1 & \texttt{10.106.235.149} &
+Autorizarla en \texttt{pg\_hba.conf}. \\
+IP de máquina 2 & \texttt{10.106.235.29} &
+Host remoto del coordinador. \\
+Puerto PostgreSQL & \texttt{5432} &
+Conexión TCP entre equipos. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Las IP del ejemplo pueden cambiar al reconectarse a la red. Siempre deben
+confirmarse con \texttt{ipconfig}.
+
+\subsection{16. Permitir conexiones PostgreSQL en la máquina 2}
+
+\subsubsection{16.1 Configurar \texttt{postgresql.conf}}
+
+Abrir como administrador el Bloc de notas y cargar
+\ruta{C:/Program Files/PostgreSQL/17/data/postgresql.conf}. Buscar
+\texttt{listen\_addresses} y dejar:
+
+\begin{lstlisting}
+listen_addresses = '*'
+\end{lstlisting}
+
+Guardar el archivo. Esto permite que PostgreSQL escuche conexiones de red y no
+solamente conexiones locales.
+
+\subsubsection{16.2 Configurar \texttt{pg\_hba.conf}}
+
+En el mismo directorio abrir \texttt{pg\_hba.conf} como administrador y
+agregar al final una línea con la IP real de la máquina 1:
+
+\begin{lstlisting}
+host    enoe_nodo_2    postgres    IP_MAQUINA_1/32    scram-sha-256
+\end{lstlisting}
+
+Ejemplo:
+
+\begin{lstlisting}
+host    enoe_nodo_2    postgres    10.106.235.149/32    scram-sha-256
+\end{lstlisting}
+
+\texttt{/32} autoriza únicamente esa computadora. No se recomienda
+\texttt{0.0.0.0/0}, porque permitiría intentos de conexión desde cualquier
+dirección.
+
+\subsubsection{16.3 Abrir el Firewall de Windows de forma visual}
+
+\begin{enumerate}
+  \item En la máquina 2 abrir \textit{Seguridad de Windows}.
+  \item Entrar en \textit{Firewall y protección de red}.
+  \item Seleccionar \textit{Configuración avanzada}.
+  \item Elegir \textit{Reglas de entrada} y después \textit{Nueva regla}.
+  \item Seleccionar \textit{Puerto}.
+  \item Marcar \textit{TCP} y escribir \texttt{5432} en
+        \textit{Puertos locales específicos}.
+  \item Seleccionar \textit{Permitir la conexión}.
+  \item Marcar solamente el perfil de red utilizado; normalmente
+        \textit{Privado}. Evitar \textit{Público} cuando no sea necesario.
+  \item Nombrar la regla \texttt{PostgreSQL 17 TCP 5432} y finalizar.
+\end{enumerate}
+
+\subsubsection{16.4 Reiniciar PostgreSQL}
+
+Abrir \textit{Servicios}, localizar \textit{postgresql-x64-17}, hacer clic
+derecho y elegir \textit{Reiniciar}. Este paso aplica los cambios de los dos
+archivos de configuración.
+
+\subsection{17. Probar la conexión de máquina 1 a máquina 2}
+
+En PowerShell de la máquina 1 sustituir la IP por la dirección actual de la
+máquina 2:
+
+\begin{lstlisting}
+Test-NetConnection 10.106.235.29 -Port 5432
+\end{lstlisting}
+
+El resultado correcto contiene \texttt{TcpTestSucceeded : True}. Después
+realizar una prueba directa de PostgreSQL:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
+  -h 10.106.235.29 -p 5432 -U postgres -d enoe_nodo_2 `
+  -c "SELECT current_database(), inet_server_addr(), COUNT(*) FROM fact_ocupacion;"
+\end{lstlisting}
+
+La contraseña solicitada es la del usuario \texttt{postgres} de la máquina 2,
+no la de la máquina 1. Si aparece el conteo del nodo 2, la consulta está
+leyendo físicamente PostgreSQL de la otra computadora.
+
+\subsection{18. Configurar el coordinador con \texttt{postgres\_fdw}}
+
+Antes de ejecutar
+\ruta{sql/distribuido/coordinador/01_fdw_config.sql}, crear una copia local
+temporal o editarla sin guardar credenciales en Git. Sustituir:
+
+\begin{itemize}
+  \item \texttt{IP\_NODO\_2} por la IP actual de la máquina 2.
+  \item \texttt{PASSWORD\_NODO\_1} por la contraseña local de máquina 1.
+  \item \texttt{PASSWORD\_NODO\_2} por la contraseña PostgreSQL de máquina 2.
+\end{itemize}
+
+En pgAdmin de la máquina 1 abrir un \textit{Query Tool} conectado a
+\texttt{enoe\_coordinador} y ejecutar, en orden:
+
+\begin{enumerate}
+  \item \ruta{sql/distribuido/coordinador/01_fdw_config.sql}
+  \item \ruta{sql/distribuido/coordinador/02_foreign_tables.sql}
+  \item \ruta{sql/distribuido/coordinador/03_views_globales.sql}
+\end{enumerate}
+
+Comprobar los servidores:
+
+\begin{lstlisting}
+SELECT srvname, srvoptions
+FROM pg_foreign_server
+ORDER BY srvname;
+\end{lstlisting}
+
+Comprobar el acceso a cada fragmento:
+
+\begin{lstlisting}
+SELECT 1 AS nodo, COUNT(*) FROM fact_ocupacion_nodo_1
+UNION ALL
+SELECT 2 AS nodo, COUNT(*) FROM fact_ocupacion_nodo_2
+ORDER BY nodo;
+\end{lstlisting}
+
+La segunda fila sólo puede obtenerse si el coordinador logra comunicarse con
+el PostgreSQL remoto de la máquina 2.
+
+\subsection{19. Actualizar la conexión cuando cambia la IP}
+
+Si los equipos se desconectan o cambian de red, repetir \texttt{ipconfig}. En
+la máquina 2 debe actualizarse la IP autorizada en \texttt{pg\_hba.conf} si
+cambió la máquina 1, y después reiniciar PostgreSQL.
+
+Si cambió la IP de la máquina 2, ejecutar en
+\texttt{enoe\_coordinador}, desde la máquina 1:
+
+\begin{lstlisting}
+ALTER SERVER enoe_nodo_2_srv
+OPTIONS (SET host 'IP_NUEVA_MAQUINA_2');
+\end{lstlisting}
+
+Verificar el cambio y repetir las pruebas de red:
+
+\begin{lstlisting}
+SELECT srvname, srvoptions
+FROM pg_foreign_server
+WHERE srvname = 'enoe_nodo_2_srv';
+\end{lstlisting}
+
+\begin{lstlisting}
+Test-NetConnection IP_NUEVA_MAQUINA_2 -Port 5432
+\end{lstlisting}
+
+\subsection{20. Ejecutar las diez consultas comparativas}
+
+En pgAdmin de la máquina 1:
+
+\begin{enumerate}
+  \item Seleccionar \texttt{enoe\_centralizada}, abrir \textit{Query Tool} y
+        cargar
+        \ruta{sql/comparacion/01_consultas_centralizadas.sql}.
+  \item Seleccionar únicamente una consulta completa, desde
+        \texttt{EXPLAIN} hasta su punto y coma, y ejecutarla.
+  \item Registrar el \texttt{Execution Time} mostrado al final del plan.
+  \item Ejecutar la misma consulta tres veces. La primera ejecución sirve para
+        calentar caché; se recomienda comparar el promedio de la segunda y
+        tercera.
+  \item Seleccionar \texttt{enoe\_coordinador}, abrir otro
+        \textit{Query Tool} y cargar
+        \ruta{sql/comparacion/02_consultas_distribuidas.sql}.
+  \item Ejecutar la consulta equivalente, también tres veces y en las mismas
+        condiciones.
+\end{enumerate}
+
+No debe ejecutarse el archivo completo en un solo bloque, porque varias
+consultas recorren millones de filas y la medición dejaría de representar una
+prueba individual. Las consultas distribuidas deben agregar primero dentro de
+cada nodo y combinar después resultados pequeños; consultar toda la vista
+global antes de agrupar transfiere demasiadas filas por red y explica los
+tiempos de 13 o 17 minutos observados al inicio.
+
+\subsection{21. Validar equivalencia centralizada y distribuida}
+
+Con ambas máquinas conectadas y el coordinador funcionando, ejecutar:
+
+\begin{lstlisting}
+python src/validate_distribution.py
+\end{lstlisting}
+
+El script compara conteo total, conteo por año, conteo por entidad y suma del
+factor de expansión. Genera
+\ruta{docs/resultados_validacion.md}. Cada comprobación debe mostrar
+\texttt{OK}. También puede verificarse manualmente que:
+
+\begin{lstlisting}
+SELECT
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_1) AS total_nodo_1,
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_2) AS total_nodo_2,
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_1) +
+  (SELECT COUNT(*) FROM fact_ocupacion_nodo_2) AS total_distribuido;
+\end{lstlisting}
+
+El total distribuido esperado es \texttt{15,645,061}, igual que la base
+centralizada.
+
+\subsection{22. Crear los respaldos finales}
+
+Crear las carpetas en la máquina 1:
+
+\begin{lstlisting}
+New-Item -ItemType Directory -Force D:\BBD\backups\centralizada
+New-Item -ItemType Directory -Force D:\BBD\backups\nodo_1
+New-Item -ItemType Directory -Force D:\BBD\backups\coordinador
+\end{lstlisting}
+
+Respaldar cada base local:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "D:\BBD\backups\centralizada\enoe_centralizada.backup" `
+ enoe_centralizada
+
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "D:\BBD\backups\nodo_1\enoe_nodo_1.backup" `
+ enoe_nodo_1
+
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "D:\BBD\backups\coordinador\enoe_coordinador.backup" `
+ enoe_coordinador
+\end{lstlisting}
+
+El respaldo definitivo de \texttt{enoe\_nodo\_2} se recomienda ejecutarlo
+localmente en la máquina 2. Así no depende de que una transferencia de varios
+millones de registros permanezca estable:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 -F c -b -v `
+ -f "C:\BBD\backups\enoe_nodo_2.backup" `
+ enoe_nodo_2
+\end{lstlisting}
+
+La entrega requiere al menos tres respaldos: centralizada y dos distribuidos.
+Se conservan además el coordinador y sus scripts para reproducir toda la
+arquitectura. Verificar que cada archivo exista, tenga un tamaño mayor que
+cero y que \texttt{pg\_dump} finalice sin error.
+
+\subsection{23. Restaurar un respaldo para comprobarlo}
+
+Para una prueba de restauración se crea una base vacía con otro nombre:
+
+\begin{lstlisting}
+CREATE DATABASE enoe_nodo_1_prueba_restore;
+\end{lstlisting}
+
+Después, desde PowerShell:
+
+\begin{lstlisting}
+& "C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" `
+ -U postgres -h 127.0.0.1 -p 5432 `
+ -d enoe_nodo_1_prueba_restore -v `
+ "D:\BBD\backups\nodo_1\enoe_nodo_1.backup"
+\end{lstlisting}
+
+Finalmente se compara el conteo con el original. Esta prueba confirma que el
+archivo no sólo existe, sino que puede recuperarse.
+
+\subsection{24. Compilar la documentación}
+
+\textbf{Con Overleaf:} entrar a \url{https://www.overleaf.com}, seleccionar
+\textit{New Project > Upload Project}, subir
+\ruta{docs/proyecto_enoe_bdd_latex.zip}, abrir
+\ruta{proyecto_enoe_bdd.tex} y pulsar \textit{Recompile}. El ZIP contiene el
+archivo principal, consultas y todas las figuras.
+
+\textbf{Con MiKTeX:} instalar MiKTeX, permitir la instalación automática de
+paquetes faltantes y ejecutar dos veces, desde
+\ruta{D:/BBD/docs/latex_entrega}:
+
+\begin{lstlisting}
+pdflatex proyecto_enoe_bdd.tex
+pdflatex proyecto_enoe_bdd.tex
+\end{lstlisting}
+
+La segunda compilación actualiza el índice y las referencias.
+
+\subsection{25. Errores frecuentes y diagnóstico rápido}
+
+\begin{longtable}{p{0.31\textwidth}p{0.61\textwidth}}
+\toprule
+\textbf{Mensaje o síntoma} & \textbf{Qué revisar} \\
+\midrule
+\texttt{python no se reconoce} &
+Reinstalar Python marcando \textit{Add python.exe to PATH} o cerrar y abrir
+PowerShell. \\
+\texttt{psql} o \texttt{pg\_dump no se reconoce} &
+Usar la ruta completa
+\ruta{C:/Program Files/PostgreSQL/17/bin/psql.exe}, como en esta guía. \\
+\texttt{password authentication failed} &
+La red sí llegó al servidor, pero la contraseña no corresponde al usuario
+\texttt{postgres} del equipo de destino. \\
+\texttt{no hay una línea en pg\_hba.conf} &
+Agregar en la máquina 2 la IP actual de la máquina 1 con \texttt{/32} y
+reiniciar PostgreSQL. \\
+\texttt{Connection timed out} &
+Revisar que ambos equipos estén en la misma red, la IP actual, el servicio,
+\texttt{listen\_addresses}, el Firewall y
+\texttt{Test-NetConnection}. \\
+\texttt{DestinationHostUnreachable} &
+La IP no es alcanzable desde la red actual. Confirmar \texttt{ipconfig} en
+ambos equipos y desactivar temporalmente VPN o adaptadores que interfieran. \\
+\texttt{secuencia de bytes no válida para UTF8} &
+En PowerShell establecer
+\texttt{\$env:PGCLIENTENCODING="WIN1252"} para esa sesión o ejecutar la
+consulta desde pgAdmin. \\
+\texttt{'NoneType' object has no attribute 'query'} en pgAdmin &
+Seleccionar únicamente una sentencia SQL completa y volver a ejecutarla. Si
+persiste, cerrar y abrir el \textit{Query Tool}; suele ser un problema de la
+interfaz, no del servidor. \\
+Consulta distribuida excesivamente lenta &
+Confirmar la red y usar agregación por nodo antes de \texttt{UNION ALL}.
+Evitar transferir la vista global completa para luego agruparla. \\
+\texttt{pg\_dump}: el servidor cerró la conexión &
+Comprobar que PostgreSQL continúe en ejecución, que el equipo no se suspenda y
+crear el respaldo del nodo 2 localmente en la máquina 2. \\
+\bottomrule
+\end{longtable}
+
+\subsection{26. Lista final de comprobación}
+
+Antes de entregar, verificar:
+
+\begin{itemize}
+  \item La base centralizada contiene 15,645,061 registros.
+  \item El nodo 1 contiene 8,107,058 registros de entidades 1--16.
+  \item El nodo 2 remoto contiene 7,538,003 registros de entidades 17--32.
+  \item \texttt{Test-NetConnection} devuelve
+        \texttt{TcpTestSucceeded : True}.
+  \item El coordinador consulta correctamente ambos nodos.
+  \item Las diez consultas centralizadas y sus diez equivalentes distribuidas
+        tienen tiempos registrados.
+  \item Las validaciones centrales y distribuidas producen resultados
+        equivalentes.
+  \item Existen respaldos válidos de la centralizada, nodo 1 y nodo 2.
+  \item El archivo \texttt{.env}, contraseñas, datos pesados y respaldos no se
+        publicaron en Git.
+  \item El ZIP de LaTeX compila y contiene todas las evidencias.
+\end{itemize}
+
+\section{Problemas encontrados y soluciones}
+
+\begin{longtable}{p{0.27\textwidth}p{0.65\textwidth}}
+\toprule
+\textbf{Problema} & \textbf{Solución}\\
+\midrule
+\endhead
+PostgreSQL remoto no respondía &
+Verificar servicio, IP, perfil de red, firewall, \texttt{listen\_addresses} y
+\texttt{pg\_hba.conf}.\\
+Autenticación fallida &
+Usar la contraseña correcta del usuario remoto y actualizar el
+\texttt{USER MAPPING}.\\
+La IP cambió &
+Obtener la nueva IP con \texttt{ipconfig}, actualizar \texttt{pg\_hba.conf} y
+el servidor FDW mediante \texttt{ALTER SERVER}.\\
+La vista global tardó más de 13 minutos &
+Aplicar agregaciones parciales directamente sobre cada tabla foránea y unir
+solo resultados pequeños.\\
+Backup remoto interrumpido &
+Realizar el respaldo localmente en la máquina 2 y transferir el archivo al
+terminar.\\
+Red escolar aislaba dispositivos &
+Usar una red privada o un hotspot común que permita comunicación entre equipos.\\
+\bottomrule
+\end{longtable}
+
+\appendix
+
+\section{Scripts completos de comparación}
+
+\subsection{Consultas centralizadas}
+
+\lstinputlisting{consultas/01_consultas_centralizadas.sql}
+
+\subsection{Consultas distribuidas}
+
+\lstinputlisting{consultas/02_consultas_distribuidas.sql}
+
+\section{Cómo compilar la documentación}
+
+Instalar MiKTeX o TeX Live. Después abrir PowerShell dentro de
+\ruta{D:/BBD/docs/latex_entrega} y ejecutar dos veces:
+
+\begin{lstlisting}[language=bash]
+pdflatex proyecto_enoe_bdd.tex
+pdflatex proyecto_enoe_bdd.tex
+\end{lstlisting}
+
+También puede subirse la carpeta completa \ruta{latex_entrega} a Overleaf. Es
+importante conservar las carpetas \ruta{figuras} y \ruta{consultas}.
+
+\end{document}

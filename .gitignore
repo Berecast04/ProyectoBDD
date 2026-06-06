@@ -1,0 +1,51 @@
+# Secrets and local configuration
+.env
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Generated ENOE datasets
+data/raw/
+data/extracted/
+data/processed/
+data/parquet/
+
+# Database backups and runtime logs
+backups/
+*.backup
+logs/
+
+# Temporary extraction and generated packages
+tmp_docx_extract/
+docs/latex_evidencia_fuente/
+docs/proyecto_enoe_bdd_latex.zip
+
+# Local/legacy documentation superseded by docs/latex_entrega
+docs/01_introduccion.md
+docs/02_fuente_datos.md
+docs/03_diseno_centralizado.md
+docs/04_consultas_centralizadas.md
+docs/05_analisis_distribuido.md
+docs/06_diseno_distribucion.md
+docs/07_consultas_distribuidas.md
+docs/08_validacion.md
+docs/09_conclusiones.md
+docs/arquitectura_y_orden.md
+docs/comparacion_rendimiento.md
+docs/documentacion_final_para_word.md
+docs/evidencia_ejecucion.md
+docs/reporte_parquet.md
+docs/resultados_validacion.md
+docs/tabla_comparacion_resultados.doc
+
+# LaTeX build output
+docs/latex_entrega/*.aux
+docs/latex_entrega/*.fdb_latexmk
+docs/latex_entrega/*.fls
+docs/latex_entrega/*.log
+docs/latex_entrega/*.out
+docs/latex_entrega/*.pdf
+docs/latex_entrega/*.synctex.gz
+docs/latex_entrega/*.toc

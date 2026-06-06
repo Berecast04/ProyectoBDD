@@ -1,0 +1,27 @@
+DOCUMENTACION LATEX DEL PROYECTO ENOE
+
+Archivo principal:
+  proyecto_enoe_bdd.tex
+
+Contenido:
+  figuras/     82 capturas extraidas del DOCX, en su orden original
+  consultas/   SQL centralizado y distribuido usado en la comparacion
+
+Compilacion local:
+  1. Instalar MiKTeX o TeX Live.
+  2. Abrir PowerShell en esta carpeta.
+  3. Ejecutar:
+       pdflatex proyecto_enoe_bdd.tex
+       pdflatex proyecto_enoe_bdd.tex
+
+Compilacion en Overleaf:
+  1. Comprimir toda la carpeta latex_entrega.
+  2. Crear un proyecto nuevo en Overleaf.
+  3. Subir el ZIP.
+  4. Seleccionar proyecto_enoe_bdd.tex como documento principal.
+
+Antes de entregar:
+  - Completar el nombre del primer integrante en la portada.
+  - Revisar profesor, numero de cuenta y fecha.
+  - No publicar contrasenas reales.
+  - Confirmar que los cuatro archivos .backup existen.
