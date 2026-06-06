@@ -254,7 +254,18 @@ El archivo \ruta{requirements.txt} instala, entre otras, las librerías
 
 \subsection{Configuración de variables}
 
-Copiar \ruta{.env.example} como \ruta{.env} y configurar:
+El archivo \ruta{.env} guarda valores que cambian entre computadoras, como el
+usuario, la contraseña y los nombres de las bases. El proyecto incluye
+\ruta{.env.example}, que funciona como plantilla y no contiene credenciales
+reales.
+
+En PowerShell, desde la raíz del proyecto, crear la copia:
+
+\begin{lstlisting}[language=bash]
+Copy-Item .env.example .env
+\end{lstlisting}
+
+Después abrir \ruta{.env} con un editor de texto y configurar:
 
 \begin{lstlisting}[language=bash]
 DB_USER=postgres
@@ -269,7 +280,48 @@ START_YEAR=2015
 END_YEAR=2024
 \end{lstlisting}
 
-No se recomienda publicar contraseñas reales en la entrega.
+\begin{itemize}
+  \item \texttt{DB\_USER}: usuario de PostgreSQL; normalmente es
+        \texttt{postgres}.
+  \item \texttt{DB\_PASSWORD}: contraseña elegida durante la instalación de
+        PostgreSQL en esa computadora.
+  \item \texttt{DB\_HOST}: se deja como \texttt{localhost} para las bases
+        locales.
+  \item \texttt{DB\_PORT}: PostgreSQL usa normalmente el puerto \texttt{5432}.
+  \item \texttt{DB\_CENTRAL}, \texttt{DB\_NODE\_1},
+        \texttt{DB\_NODE\_2} y \texttt{DB\_COORDINATOR}: nombres de las bases
+        utilizadas por los scripts.
+  \item \texttt{START\_YEAR} y \texttt{END\_YEAR}: periodo histórico a
+        procesar.
+\end{itemize}
+
+\textbf{Ejemplo:} si la persona eligió una contraseña propia al instalar
+PostgreSQL, debe escribirla únicamente en su archivo local:
+
+\begin{lstlisting}[language=bash]
+DB_PASSWORD=CONTRASENA_ELEGIDA_POR_EL_USUARIO
+\end{lstlisting}
+
+El archivo \ruta{.env} está incluido en \ruta{.gitignore}; por lo tanto, no se
+sube a GitHub. Solo se publica \ruta{.env.example}, que conserva marcadores de
+ejemplo. Tampoco deben colocarse contraseñas reales en capturas, documentos,
+scripts SQL o mensajes compartidos.
+
+\subsection{Credenciales del coordinador distribuido}
+
+El script \ruta{sql/distribuido/coordinador/01_fdw_config.sql} contiene estos
+marcadores:
+
+\begin{lstlisting}
+OPTIONS (host 'IP_NODO_2', dbname 'enoe_nodo_2', port '5432');
+OPTIONS (user 'postgres', password 'PASSWORD_NODO_1');
+OPTIONS (user 'postgres', password 'PASSWORD_NODO_2');
+\end{lstlisting}
+
+Antes de ejecutarlo, cada equipo debe sustituir los marcadores en su copia
+local. No se debe guardar ni publicar el script con contraseñas reales. Una vez
+creado el \texttt{USER MAPPING}, PostgreSQL almacena internamente la información
+necesaria para la conexión.
 
 \section{Fuente y preparación de los datos}
 
