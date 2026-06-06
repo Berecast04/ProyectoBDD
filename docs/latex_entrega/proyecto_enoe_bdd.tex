@@ -1,0 +1,865 @@
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{url}
+
+\geometry{margin=2.3cm}
+\graphicspath{{figuras/}}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  citecolor=black,
+  pdftitle={Proyecto ENOE: base centralizada y distribuida}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Bases de Datos Distribuidas}
+\rhead{Proyecto ENOE}
+\cfoot{\thepage}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\renewcommand{\arraystretch}{1.18}
+
+\definecolor{sqlblue}{RGB}{0,68,136}
+\definecolor{sqlgreen}{RGB}{0,110,70}
+\definecolor{sqlgray}{RGB}{245,245,245}
+\lstdefinestyle{sqlstyle}{
+  language=SQL,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{sqlblue}\bfseries,
+  commentstyle=\color{sqlgreen},
+  backgroundcolor=\color{sqlgray},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible,
+  showstringspaces=false
+}
+\lstset{style=sqlstyle}
+
+\newcommand{\ruta}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\evidencia}[2]{
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth,height=0.72\textheight,keepaspectratio]{#1}
+    \caption{#2}
+  \end{figure}
+}
+\newcommand{\evidenciapar}[4]{
+  \begin{figure}[H]
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{#1}
+      \par\smallskip{\small #2}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.48\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{#3}
+      \par\smallskip{\small #4}
+    \end{minipage}
+  \end{figure}
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \begin{minipage}{0.28\textwidth}
+    \centering
+    \includegraphics[width=0.82\linewidth]{evidencia_001.jpg}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.42\textwidth}
+    \centering
+    \includegraphics[width=0.95\linewidth]{evidencia_002.jpg}
+  \end{minipage}
+
+  \vspace{1.2cm}
+  {\Large\bfseries Universidad Nacional Autónoma de México\par}
+  \vspace{0.25cm}
+  {\large Facultad de Estudios Superiores Acatlán\par}
+  \vspace{0.7cm}
+  {\large Matemáticas Aplicadas y Computación\par}
+  \vfill
+  {\Huge\bfseries Proyecto de Bases de Datos Distribuidas\par}
+  \vspace{0.5cm}
+  {\LARGE Análisis centralizado y distribuido de la ENOE\par}
+  \vfill
+  \begin{tabular}{rl}
+    \textbf{Materia:} & Bases de Datos Distribuidas\\
+    \textbf{Profesor:} & Rosas Hernández Javier\\
+    \textbf{Integrantes:} & Hernández Castillo [completar nombre]\\
+                          & Ramírez Muñoz Gloria Lizbeth\\
+    \textbf{Fecha:} & Junio de 2026
+  \end{tabular}
+  \vfill
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+\section{Resumen}
+
+Este proyecto construye y compara dos formas de almacenar y consultar datos
+históricos de la Encuesta Nacional de Ocupación y Empleo (ENOE): una base de
+datos centralizada y una base de datos distribuida en dos computadoras. La
+fuente utilizada fue el portal oficial del Instituto Nacional de Estadística y
+Geografía (INEGI), con información del periodo 2015--2024.
+
+El proceso completo incluyó descarga de archivos, extracción de ZIP, lectura de
+DBF, transformación a Parquet, diseño centralizado normalizado, carga en
+PostgreSQL, fragmentación horizontal por entidad federativa, restauración de un
+nodo en una segunda máquina, configuración de \texttt{postgres\_fdw},
+consultas distribuidas, validación y respaldos.
+
+La comparación de diez consultas mostró que la base centralizada fue más rápida
+en seis casos y la distribuida en cuatro. La conclusión no es que una
+arquitectura sea siempre superior: la centralizada resultó más conveniente
+para consultas globales simples, mientras que la distribuida obtuvo ventajas
+cuando la consulta coincidió con la fragmentación o cada nodo realizó una
+agregación parcial antes de enviar su resultado.
+
+\section{Requisitos de la práctica}
+
+La práctica solicitó los siguientes elementos:
+
+\begin{enumerate}[label=\arabic*.]
+  \item Fuente real: ENOE, población de 15 años y más, con histórico superior a cinco años.
+  \item Diseño centralizado OLTP normalizado hasta tercera forma normal y modelo entidad--relación.
+  \item Al menos cinco consultas centralizadas.
+  \item Análisis para transformar el sistema en una base distribuida.
+  \item Diseño de la distribución.
+  \item Distribución o fragmentación de los datos.
+  \item Modificación de cinco consultas centralizadas para obtener versiones distribuidas equivalentes.
+  \item Al menos cinco consultas distribuidas nuevas.
+  \item Validación de la base distribuida contra la base centralizada.
+  \item Entrega del trabajo escrito, scripts y por lo menos tres respaldos: centralizado y dos nodos.
+\end{enumerate}
+
+Todos estos puntos se cubren en las secciones siguientes.
+
+\section{Conceptos básicos para una persona sin experiencia}
+
+\subsection{¿Qué es una base de datos?}
+
+Una base de datos es un conjunto organizado de información. PostgreSQL es el
+programa que almacena esa información y permite consultarla mediante SQL. SQL
+es el lenguaje usado para pedir datos, por ejemplo contar registros o agrupar
+personas por entidad federativa.
+
+\subsection{Base centralizada}
+
+En una base centralizada todos los datos se encuentran en un solo servidor. En
+este proyecto esa base se llama \texttt{enoe\_centralizada}. Su ventaja es la
+simplicidad: una sola computadora administra toda la información. Su
+desventaja es que el almacenamiento y procesamiento se concentran en un único
+equipo.
+
+\subsection{Base distribuida}
+
+En una base distribuida los datos se reparten entre varias computadoras. Para
+este proyecto, las entidades 1 a 16 se almacenaron en el nodo 1 y las entidades
+17 a 32 en el nodo 2. Un coordinador permite consultar ambos nodos desde un
+solo punto.
+
+\subsection{Fragmentación horizontal}
+
+Fragmentar horizontalmente significa dividir las filas de una tabla usando una
+regla. La tabla conserva las mismas columnas, pero cada nodo guarda filas
+diferentes:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Nodo} & \textbf{Regla} & \textbf{Ubicación}\\
+\midrule
+Nodo 1 & \texttt{id\_entidad} entre 1 y 16 & Máquina principal\\
+Nodo 2 & \texttt{id\_entidad} entre 17 y 32 & Máquina remota\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Coordinador y tablas foráneas}
+
+La extensión \texttt{postgres\_fdw} permite crear tablas foráneas. Una tabla
+foránea parece local, pero sus datos se encuentran en otro PostgreSQL. En este
+proyecto, \texttt{fact\_ocupacion\_nodo\_2} apunta a la computadora del segundo
+nodo.
+
+\section{Requerimientos de instalación}
+
+\subsection{Equipo recomendado}
+
+\begin{itemize}
+  \item Dos computadoras con Windows 10 u 11 de 64 bits.
+  \item Al menos 8 GB de memoria RAM; 16 GB es recomendable.
+  \item Al menos 30 GB libres para datos, bases y respaldos.
+  \item Ambas computadoras conectadas a la misma red local.
+  \item Evitar suspensión, cambio de red o VPN durante consultas y respaldos.
+\end{itemize}
+
+\subsection{Programas para la máquina principal}
+
+\begin{itemize}
+  \item Python 3.12 o compatible.
+  \item PostgreSQL 17.
+  \item pgAdmin 4.
+  \item Visual Studio Code o Cursor, opcional pero recomendado.
+  \item Git, opcional si el proyecto se transfiere como carpeta.
+  \item MiKTeX o TeX Live para compilar esta documentación.
+\end{itemize}
+
+\subsection{Programas para la máquina del nodo 2}
+
+\begin{itemize}
+  \item PostgreSQL 17.
+  \item pgAdmin 4.
+  \item Python no es obligatorio si únicamente se restaura y publica el nodo.
+\end{itemize}
+
+\subsection{Librerías Python}
+
+Desde PowerShell, dentro de la carpeta del proyecto:
+
+\begin{lstlisting}[language=bash]
+cd D:\BBD
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+\end{lstlisting}
+
+El archivo \ruta{requirements.txt} instala, entre otras, las librerías
+\texttt{pandas}, \texttt{pyarrow}, \texttt{requests}, \texttt{tqdm},
+\texttt{SQLAlchemy}, \texttt{psycopg2}, \texttt{python-dotenv} y
+\texttt{dbfread}.
+
+\subsection{Configuración de variables}
+
+Copiar \ruta{.env.example} como \ruta{.env} y configurar:
+
+\begin{lstlisting}[language=bash]
+DB_USER=postgres
+DB_PASSWORD=CAMBIAR_POR_PASSWORD_LOCAL
+DB_HOST=localhost
+DB_PORT=5432
+DB_CENTRAL=enoe_centralizada
+DB_NODE_1=enoe_nodo_1
+DB_NODE_2=enoe_nodo_2
+DB_COORDINATOR=enoe_coordinador
+START_YEAR=2015
+END_YEAR=2024
+\end{lstlisting}
+
+No se recomienda publicar contraseñas reales en la entrega.
+
+\section{Fuente y preparación de los datos}
+
+La fuente oficial fue:
+
+\begin{center}
+\url{https://www.inegi.org.mx/programas/enoe/15ymas/\#datos_abiertos}
+\end{center}
+
+Se procesaron diez años, de 2015 a 2024. Los archivos originales se guardaron
+en \ruta{data/raw}, los archivos extraídos en \ruta{data/extracted} y los
+Parquet en \ruta{data/parquet}.
+
+\subsection{Descarga}
+
+\begin{lstlisting}[language=bash]
+python src/download_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+\evidenciapar{evidencia_003.png}{Descarga de archivos oficiales y avance por periodos.}
+{evidencia_004.png}{Continuación del proceso de descarga con barras de progreso.}
+\evidencia{evidencia_005.png}{Finalización de la descarga histórica de la ENOE.}
+
+\subsection{Extracción de ZIP}
+
+\begin{lstlisting}[language=bash]
+python src/extract_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+\evidencia{evidencia_006.png}{Ejecución del script de extracción de archivos ZIP.}
+
+\subsection{Transformación a Parquet}
+
+\begin{lstlisting}[language=bash]
+python src/transform_enoe.py --start-year 2015 --end-year 2024
+\end{lstlisting}
+
+\evidenciapar{evidencia_007.png}{Transformación de archivos ENOE a Parquet.}
+{evidencia_008.png}{Procesamiento por año y trimestre.}
+\evidenciapar{evidencia_009.png}{Continuación de la transformación histórica.}
+{evidencia_010.png}{Finalización de archivos Parquet del periodo 2015--2024.}
+
+\section{Diseño centralizado}
+
+\subsection{Modelo}
+
+La base \texttt{enoe\_centralizada} usa una tabla de hechos
+\texttt{fact\_ocupacion} y dimensiones para tiempo, entidad, municipio, sexo,
+edad, nivel educativo, condición de ocupación, sector y posición laboral.
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Tabla} & \textbf{Propósito}\\
+\midrule
+\texttt{dim\_tiempo} & Año y trimestre.\\
+\texttt{dim\_entidad} & Entidades federativas.\\
+\texttt{dim\_municipio} & Municipios.\\
+\texttt{dim\_sexo} & Catálogo de sexo.\\
+\texttt{dim\_edad} & Edad o grupo de edad.\\
+\texttt{dim\_nivel\_educativo} & Nivel de estudios.\\
+\texttt{dim\_condicion\_ocupacion} & Condición laboral.\\
+\texttt{dim\_sector\_actividad} & Sector económico.\\
+\texttt{dim\_posicion\_ocupacion} & Posición en la ocupación.\\
+\texttt{fact\_ocupacion} & Llaves foráneas y métricas: factor, horas e ingreso.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+La separación de catálogos evita repetir descripciones en millones de filas.
+Cada dimensión tiene una llave primaria y la tabla de hechos contiene llaves
+foráneas, lo que permite justificar la tercera forma normal.
+
+\subsection{Creación y carga}
+
+En pgAdmin se crea la base y se ejecutan, en orden:
+
+\begin{enumerate}
+  \item \ruta{sql/centralizado/01_create_database.sql}
+  \item \ruta{sql/centralizado/02_create_schema.sql}
+  \item \ruta{sql/centralizado/03_create_tables.sql}
+  \item \ruta{sql/centralizado/04_constraints_indexes.sql}
+  \item \ruta{sql/centralizado/08_seed_catalogs.sql}
+  \item \ruta{sql/centralizado/05_views.sql}
+\end{enumerate}
+
+Después:
+
+\begin{lstlisting}[language=bash]
+python src/load_centralized_db.py --db enoe_centralizada
+\end{lstlisting}
+
+\evidencia{evidencia_011.png}{Validación del total de registros en la base centralizada.}
+
+El resultado final fue de \textbf{15,645,061 registros}.
+
+\section{Fragmentación y carga de nodos}
+
+\begin{lstlisting}[language=bash]
+python src/fragment_data.py
+python src/load_nodes.py
+\end{lstlisting}
+
+\evidencia{evidencia_012.jpg}{Fragmentación horizontal: total central, nodo 1 y nodo 2.}
+\evidenciapar{evidencia_013.png}{Conteo del nodo 1: 8,107,058 registros.}
+{evidencia_014.png}{Conteo del nodo 2: 7,538,003 registros.}
+
+La suma de ambos nodos es:
+
+\[
+8\,107\,058 + 7\,538\,003 = 15\,645\,061.
+\]
+
+\section{Configuración inicial del coordinador}
+
+Se crea la extensión \texttt{postgres\_fdw}, los servidores foráneos y los
+usuarios de conexión.
+
+\evidencia{evidencia_015.png}{Ejecución inicial de la configuración FDW.}
+
+\section{Creación del nodo 2 en la segunda computadora}
+
+En la máquina 2 se instala PostgreSQL y se crea:
+
+\begin{lstlisting}
+CREATE DATABASE enoe_nodo_2;
+\end{lstlisting}
+
+\evidencia{evidencia_016.png}{Creación de la base enoe\_nodo\_2 en la segunda computadora.}
+
+El fragmento se transfirió mediante respaldo y se restauró en la máquina 2.
+
+\evidencia{evidencia_017.png}{Restauración y creación de objetos del nodo 2.}
+\evidenciapar{evidencia_018.png}{Conteo y rango de entidades en la máquina 2.}
+{evidencia_019.png}{Validación: el nodo 2 contiene entidades 17 a 32.}
+
+\section{Conexión de las dos computadoras}
+
+\subsection{Direcciones IP documentadas}
+
+Las direcciones son dinámicas: pueden cambiar al reconectar el Wi-Fi. Por ello,
+deben verificarse siempre con \texttt{ipconfig}.
+
+\begin{table}[H]
+\centering
+\caption{Direcciones IP observadas durante las sesiones de evidencia.}
+\begin{tabular}{llll}
+\toprule
+\textbf{Sesión} & \textbf{Equipo} & \textbf{IP} & \textbf{Función}\\
+\midrule
+Sesión original & Máquina 1 & 10.225.183.149 & Central, nodo 1 y coordinador\\
+Sesión original & Máquina 2 & 10.225.183.29 & Nodo 2 remoto\\
+Reconexión posterior & Máquina 1 & 10.106.235.149 & Central, nodo 1 y coordinador\\
+Reconexión posterior & Máquina 2 & 10.106.235.29 & Nodo 2 remoto\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\evidenciapar{evidencia_020.png}{Dirección IPv4 de la máquina principal.}
+{evidencia_021.png}{Dirección IPv4 de la máquina del nodo 2.}
+
+\subsection{PostgreSQL remoto}
+
+En la máquina 2 se modifica \ruta{postgresql.conf}:
+
+\begin{lstlisting}
+listen_addresses = '*'
+\end{lstlisting}
+
+En \ruta{pg_hba.conf} se agrega la IP actual de la máquina 1:
+
+\begin{lstlisting}
+host    enoe_nodo_2    postgres    10.225.183.149/32    md5
+\end{lstlisting}
+
+Para una instalación actual es preferible \texttt{scram-sha-256} si el usuario
+y el servidor están configurados para ese método.
+
+\evidencia{evidencia_022.png}{Regla agregada en pg\_hba.conf para autorizar la máquina 1.}
+
+También se abre el puerto TCP 5432 en el Firewall de Windows de la máquina 2 y
+se reinicia el servicio \texttt{postgresql-x64-17}.
+
+\subsection{Prueba de conectividad}
+
+Desde la máquina 1:
+
+\begin{lstlisting}[language=bash]
+Test-NetConnection 10.225.183.29 -Port 5432
+\end{lstlisting}
+
+\evidencia{evidencia_023.png}{Prueba exitosa del puerto 5432: TcpTestSucceeded=True.}
+
+\subsection{Prueba directa con psql}
+
+\begin{lstlisting}[language=bash]
+psql -h 10.225.183.29 -p 5432 -U postgres -d enoe_nodo_2
+\end{lstlisting}
+
+\evidencia{evidencia_024.png}{Conexión desde la máquina 1 al PostgreSQL de la máquina 2.}
+\evidenciapar{evidencia_025.png}{Conteo remoto del nodo 2: 7,538,003.}
+{evidencia_026.png}{Rango remoto: entidades 17 a 32.}
+
+\section{Coordinador definitivo}
+
+\subsection{Tablas y servidores foráneos}
+
+\evidencia{evidencia_027.png}{Listado de tablas foráneas registradas en el coordinador.}
+\evidencia{evidencia_028.png}{Servidores FDW: nodo 1 local y nodo 2 remoto.}
+
+La evidencia muestra que \texttt{enoe\_nodo\_2\_srv} apunta a una IP externa,
+por lo que \texttt{fact\_ocupacion\_nodo\_2} no es una copia local.
+
+\subsection{Recreación de objetos}
+
+\evidencia{evidencia_029.png}{Limpieza de objetos previos del coordinador.}
+\evidenciapar{evidencia_030.png}{Creación de extensión, servidores y user mappings.}
+{evidencia_031.png}{Creación e importación de tablas foráneas.}
+\evidenciapar{evidencia_032.png}{Creación de vistas globales.}
+{evidencia_033.png}{Conteo del nodo 2 consultado mediante el coordinador.}
+
+\section{Consultas centralizadas iniciales}
+
+Las consultas se ejecutan en \texttt{enoe\_centralizada}. En ellas se simula el
+criterio de fragmentación mediante rangos de \texttt{id\_entidad}.
+
+\evidencia{evidencia_034.jpg}{Consulta centralizada: conteo por fragmento lógico.}
+\evidencia{evidencia_035.jpg}{Consulta centralizada: validación del rango de entidades.}
+\evidencia{evidencia_036.jpg}{Consulta centralizada: total de 15,645,061 registros.}
+\evidencia{evidencia_037.jpg}{Consulta centralizada: registros por año y fragmento lógico.}
+\evidencia{evidencia_038.jpg}{Consulta centralizada: condición de ocupación por fragmento.}
+\evidencia{evidencia_039.jpg}{Consulta centralizada: población ponderada por fragmento.}
+\evidenciapar{evidencia_040.jpg}{Consulta centralizada preparada con EXPLAIN ANALYZE.}
+{evidencia_041.jpg}{Plan y tiempo de ejecución centralizado.}
+
+\section{Vista global y problema de rendimiento}
+
+La primera estrategia creó una vista global:
+
+\begin{lstlisting}
+CREATE VIEW vw_fact_ocupacion_global AS
+SELECT *, 1 AS nodo_origen FROM fact_ocupacion_nodo_1
+UNION ALL
+SELECT *, 2 AS nodo_origen FROM fact_ocupacion_nodo_2;
+\end{lstlisting}
+
+La vista es correcta desde el punto de vista lógico, pero una consulta global
+puede obligar al coordinador a procesar o transferir millones de filas antes de
+agruparlas. La evidencia registró una consulta de aproximadamente 13 minutos.
+
+\evidencia{evidencia_042.png}{Consulta global del coordinador con tiempo elevado.}
+
+La solución fue mantener el coordinador, pero consultar cada tabla foránea con
+agregaciones parciales. Así, cada nodo procesa sus datos y el coordinador recibe
+solamente pocas filas.
+
+\section{Consultas distribuidas optimizadas}
+
+\evidencia{evidencia_043.jpg}{Conteo directo por nodo mediante tablas foráneas.}
+\evidencia{evidencia_044.jpg}{Validación distribuida del rango de entidades.}
+\evidencia{evidencia_045.jpg}{Suma de fragmentos y total distribuido.}
+\evidenciapar{evidencia_046.jpg}{Consulta distribuida por periodo usando agregación parcial.}
+{evidencia_047.png}{Resultado por periodo y nodo.}
+\evidencia{evidencia_048.jpg}{Registros por entidad federativa en cada nodo.}
+\evidenciapar{evidencia_049.jpg}{Consulta por condición de ocupación y nodo.}
+{evidencia_050.png}{Resultado agregado de condición de ocupación.}
+\evidencia{evidencia_051.jpg}{Plan y tiempo de una consulta distribuida optimizada.}
+
+\section{Respaldos}
+
+Los respaldos se generan con \texttt{pg\_dump} en formato personalizado
+(\texttt{-F c}). Se respaldan la base centralizada, los dos nodos y el
+coordinador.
+
+\subsection{Centralizada}
+
+\evidenciapar{evidencia_052.png}{Creación de la carpeta para el respaldo centralizado.}
+{evidencia_053.png}{Ejecución del respaldo de enoe\_centralizada.}
+
+\subsection{Nodo 1}
+
+\evidenciapar{evidencia_054.png}{Creación de la carpeta de respaldo del nodo 1.}
+{evidencia_055.png}{Ejecución del respaldo de enoe\_nodo\_1.}
+
+\subsection{Nodo 2}
+
+Para evitar una interrupción de red, el respaldo del nodo 2 puede realizarse
+localmente en la segunda computadora y transferirse después.
+
+\evidenciapar{evidencia_056.png}{Creación de la carpeta de respaldos en la máquina 2.}
+{evidencia_057.png}{Ejecución local del respaldo del nodo 2.}
+\evidencia{evidencia_058.png}{Archivo de respaldo del nodo 2 generado correctamente.}
+
+\subsection{Coordinador}
+
+\evidenciapar{evidencia_059.png}{Creación de la carpeta de respaldo del coordinador.}
+{evidencia_060.png}{Ejecución del respaldo de enoe\_coordinador.}
+
+\section{Metodología de comparación de rendimiento}
+
+Se compararon diez pares de consultas equivalentes. Cada consulta se ejecutó
+tres veces:
+
+\begin{enumerate}
+  \item La primera ejecución se consideró calentamiento de caché.
+  \item Se registraron las ejecuciones 2 y 3.
+  \item Se calculó su promedio.
+  \item Se confirmó que centralizada y distribuida devolvieran resultados equivalentes.
+\end{enumerate}
+
+Los valores mostrados por pgAdmin tienen formato
+\texttt{hh:mm:ss.sss}; por ello, los resultados de la tabla se expresan en
+\textbf{segundos}, no en milisegundos.
+
+La mejora distribuida se calculó como:
+
+\[
+\text{Mejora} =
+\frac{T_{\text{central}}-T_{\text{distribuido}}}
+{T_{\text{central}}}\times 100.
+\]
+
+Un porcentaje positivo favorece a la base distribuida; uno negativo favorece a
+la centralizada.
+
+\section{Evidencias de las diez comparaciones}
+
+\subsection{Consulta 1: conteo total global}
+
+\evidenciapar{evidencia_061.png}{Centralizada: 15,645,061 registros en 0.970 s.}
+{evidencia_062.png}{Distribuida: mismo total en 2.862 s.}
+
+\subsection{Consulta 2: conteo por fragmento o nodo}
+
+\evidenciapar{evidencia_063.png}{Centralizada: fragmentos lógicos en 3.671 s.}
+{evidencia_064.png}{Distribuida: nodos físicos en 2.454 s.}
+
+\subsection{Consulta 3: conteo por entidad}
+
+\evidenciapar{evidencia_065.png}{Centralizada: conteo por las 32 entidades en 3.247 s.}
+{evidencia_066.png}{Distribuida: agregación parcial por entidad en 3.482 s.}
+
+\subsection{Consulta 4: conteo por año}
+
+\evidenciapar{evidencia_067.png}{Centralizada: conteo 2015--2024 en 2.808 s.}
+{evidencia_068.png}{Distribuida: conteos parciales integrados en 2.855 s.}
+
+\subsection{Consulta 5: población ponderada de 2024}
+
+\evidenciapar{evidencia_069.png}{Centralizada: población ponderada 2024 en 1.330 s.}
+{evidencia_070.png}{Distribuida: agregación por nodo en 1.099 s.}
+
+\subsection{Consulta 6: condición de ocupación por nodo}
+
+\evidenciapar{evidencia_071.png}{Centralizada: condición de ocupación en 3.010 s.}
+{evidencia_072.png}{Distribuida: condición por nodo en 3.372 s.}
+
+\subsection{Consulta 7: distribución por sexo y nodo}
+
+\evidenciapar{evidencia_073.png}{Centralizada: agrupación por sexo en 3.081 s.}
+{evidencia_074.png}{Distribuida: agregación por sexo en 2.903 s.}
+
+\subsection{Consulta 8: promedio de horas trabajadas}
+
+\evidenciapar{evidencia_075.png}{Centralizada: promedio de horas en 3.489 s.}
+{evidencia_076.png}{Distribuida: suma y conteo parciales en 6.814 s.}
+
+\subsection{Consulta 9: tres entidades con más registros de 2024 por nodo}
+
+\evidenciapar{evidencia_077.png}{Centralizada: ranking por fragmento en 3.138 s.}
+{evidencia_078.png}{Resultado centralizado del ranking.}
+\evidenciapar{evidencia_079.png}{Distribuida: cada nodo devuelve solamente su top 3.}
+{evidencia_080.png}{Resultado distribuido en 0.698 s.}
+
+\subsection{Consulta 10: condición de ocupación en entidades 17 y 18}
+
+\evidenciapar{evidencia_081.png}{Centralizada: entidades 17 y 18 en 1.143 s.}
+{evidencia_082.png}{Distribuida: consulta directa al nodo 2 en 1.212 s.}
+
+\section{Resultados cuantitativos}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Comparación de tiempos observados.}
+\begin{tabular}{clrrrr}
+\toprule
+\textbf{No.} & \textbf{Consulta} & \textbf{Central (s)} &
+\textbf{Distrib. (s)} & \textbf{Mejora (\%)} & \textbf{Ganadora}\\
+\midrule
+1 & Conteo total global & 0.970 & 2.862 & -195.05 & Centralizada\\
+2 & Conteo por nodo & 3.671 & 2.454 & 33.15 & Distribuida\\
+3 & Conteo por entidad & 3.247 & 3.482 & -7.24 & Centralizada\\
+4 & Conteo por año & 2.808 & 2.855 & -1.67 & Centralizada\\
+5 & Población ponderada 2024 & 1.330 & 1.099 & 17.37 & Distribuida\\
+6 & Condición de ocupación & 3.010 & 3.372 & -12.03 & Centralizada\\
+7 & Sexo por nodo & 3.081 & 2.903 & 5.78 & Distribuida\\
+8 & Promedio de horas & 3.489 & 6.814 & -95.30 & Centralizada\\
+9 & Top 3 por nodo & 3.138 & 0.698 & 77.76 & Distribuida\\
+10 & Entidades 17 y 18 & 1.143 & 1.212 & -6.04 & Centralizada\\
+\midrule
+ & \textbf{Promedio} & \textbf{2.589} & \textbf{2.775} &
+\textbf{-7.20} & \textbf{Centralizada}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La centralizada ganó seis consultas y la distribuida cuatro. El promedio
+centralizado fue 2.589 s y el distribuido 2.775 s; en este ambiente concreto,
+la centralizada fue aproximadamente 7.2\% más rápida en promedio.
+
+\section{Interpretación}
+
+\subsection{Cuándo fue mejor la centralizada}
+
+La centralizada destacó en el conteo global, conteos generales, condición de
+ocupación y promedio de horas. Estas operaciones requieren recorrer gran parte
+de los datos y la base centralizada evita la latencia de red y la coordinación
+entre dos servidores.
+
+La consulta 8 fue especialmente desfavorable para la distribuida. Calcular un
+promedio global correctamente requiere que cada nodo produzca suma y cantidad,
+y que el coordinador combine ambos valores. El costo de los escaneos remotos y
+la red superó el beneficio del paralelismo.
+
+\subsection{Cuándo fue mejor la distribuida}
+
+La distribuida ganó en consultas 2, 5, 7 y 9. La mayor ventaja apareció en la
+consulta 9, con 77.76\% de mejora. Cada nodo filtró 2024, agrupó sus propias
+entidades y devolvió solamente tres filas. Este patrón aprovecha correctamente
+la distribución: el procesamiento se acerca a los datos y se reduce la
+transferencia.
+
+La consulta 10 accedió únicamente al nodo 2 porque las entidades 17 y 18
+pertenecen a ese fragmento. Aunque el tiempo fue ligeramente mayor que el
+centralizado, la diferencia fue pequeña. La latencia de la red local explica
+que una consulta remota corta no necesariamente sea más rápida, aun cuando
+acceda al nodo correcto.
+
+\section{Conclusión}
+
+Con base en las diez pruebas, la base centralizada es la opción más conveniente
+si el sistema se ejecutará en una sola computadora y la mayoría de las
+consultas necesita recorrer toda la información. En este experimento fue más
+rápida en seis de diez consultas y obtuvo un promedio global 7.2\% menor.
+También es más sencilla de instalar, respaldar y administrar.
+
+La base distribuida no debe considerarse incorrecta ni inútil. Su principal
+ventaja apareció en consultas alineadas con la fragmentación y en agregaciones
+parciales. La consulta 9 demostró que puede superar ampliamente a la
+centralizada cuando cada nodo procesa localmente y devuelve pocos resultados.
+Además, aporta separación física, disponibilidad organizacional y posibilidad
+de crecimiento horizontal.
+
+Por lo tanto, la conclusión adecuada es:
+
+\begin{quote}
+\textbf{Para el entorno de prueba actual y consultas predominantemente
+globales, la base centralizada ofrece el mejor rendimiento promedio y menor
+complejidad. La base distribuida es preferible cuando las consultas son
+regionales, coinciden con el criterio de fragmentación o el volumen futuro
+requiere repartir almacenamiento y procesamiento entre varios equipos.}
+\end{quote}
+
+No existe una arquitectura universalmente mejor. La decisión depende del
+patrón real de consultas, la estabilidad de la red, la ubicación de los
+usuarios, el crecimiento de los datos y los requisitos de disponibilidad.
+
+\section{Guía completa de ejecución desde cero}
+
+\subsection{Máquina 1}
+
+\begin{enumerate}
+  \item Instalar Python, PostgreSQL 17 y pgAdmin 4.
+  \item Copiar el proyecto a \ruta{D:/BBD}.
+  \item Crear y activar el entorno virtual.
+  \item Ejecutar \ruta{pip install -r requirements.txt}.
+  \item Configurar \ruta{.env}.
+  \item Descargar, extraer y transformar los datos.
+  \item Crear \texttt{enoe\_centralizada} y ejecutar los scripts SQL centrales.
+  \item Ejecutar \ruta{load_centralized_db.py}.
+  \item Ejecutar \ruta{fragment_data.py}.
+  \item Crear \texttt{enoe\_nodo\_1}, \texttt{enoe\_nodo\_2} y
+        \texttt{enoe\_coordinador}.
+  \item Ejecutar \ruta{load_nodes.py} mientras ambos nodos sean locales.
+  \item Generar el respaldo del nodo 2 y transferirlo.
+\end{enumerate}
+
+\subsection{Máquina 2}
+
+\begin{enumerate}
+  \item Instalar PostgreSQL 17 y pgAdmin 4.
+  \item Crear la base \texttt{enoe\_nodo\_2}.
+  \item Restaurar el respaldo con \texttt{pg\_restore}.
+  \item Configurar \texttt{listen\_addresses='*'}.
+  \item Agregar la IP de la máquina 1 en \texttt{pg\_hba.conf}.
+  \item Abrir TCP 5432 en el Firewall.
+  \item Reiniciar PostgreSQL.
+  \item Validar conteo y rango de entidades.
+\end{enumerate}
+
+\subsection{Reconexión cuando cambian las IP}
+
+\begin{enumerate}
+  \item Ejecutar \texttt{ipconfig} en ambas máquinas.
+  \item Actualizar \texttt{pg\_hba.conf} en la máquina 2 con la IP de la máquina 1.
+  \item Reiniciar PostgreSQL en la máquina 2.
+  \item En el coordinador ejecutar:
+\end{enumerate}
+
+\begin{lstlisting}
+ALTER SERVER enoe_nodo_2_srv
+OPTIONS (SET host 'IP_NUEVA_MAQUINA_2');
+\end{lstlisting}
+
+Después verificar:
+
+\begin{lstlisting}
+SELECT srvname, srvoptions
+FROM pg_foreign_server
+WHERE srvname = 'enoe_nodo_2_srv';
+\end{lstlisting}
+
+\subsection{Pruebas finales}
+
+\begin{lstlisting}
+SELECT COUNT(*) FROM fact_ocupacion_nodo_1;
+SELECT COUNT(*) FROM fact_ocupacion_nodo_2;
+\end{lstlisting}
+
+Luego ejecutar por separado las consultas de:
+
+\begin{itemize}
+  \item \ruta{consultas/01_consultas_centralizadas.sql} en
+        \texttt{enoe\_centralizada}.
+  \item \ruta{consultas/02_consultas_distribuidas.sql} en
+        \texttt{enoe\_coordinador}.
+\end{itemize}
+
+\section{Problemas encontrados y soluciones}
+
+\begin{longtable}{p{0.27\textwidth}p{0.65\textwidth}}
+\toprule
+\textbf{Problema} & \textbf{Solución}\\
+\midrule
+\endhead
+PostgreSQL remoto no respondía &
+Verificar servicio, IP, perfil de red, firewall, \texttt{listen\_addresses} y
+\texttt{pg\_hba.conf}.\\
+Autenticación fallida &
+Usar la contraseña correcta del usuario remoto y actualizar el
+\texttt{USER MAPPING}.\\
+La IP cambió &
+Obtener la nueva IP con \texttt{ipconfig}, actualizar \texttt{pg\_hba.conf} y
+el servidor FDW mediante \texttt{ALTER SERVER}.\\
+La vista global tardó más de 13 minutos &
+Aplicar agregaciones parciales directamente sobre cada tabla foránea y unir
+solo resultados pequeños.\\
+Backup remoto interrumpido &
+Realizar el respaldo localmente en la máquina 2 y transferir el archivo al
+terminar.\\
+Red escolar aislaba dispositivos &
+Usar una red privada o un hotspot común que permita comunicación entre equipos.\\
+\bottomrule
+\end{longtable}
+
+\appendix
+
+\section{Scripts completos de comparación}
+
+\subsection{Consultas centralizadas}
+
+\lstinputlisting{consultas/01_consultas_centralizadas.sql}
+
+\subsection{Consultas distribuidas}
+
+\lstinputlisting{consultas/02_consultas_distribuidas.sql}
+
+\section{Cómo compilar la documentación}
+
+Instalar MiKTeX o TeX Live. Después abrir PowerShell dentro de
+\ruta{D:/BBD/docs/latex_entrega} y ejecutar dos veces:
+
+\begin{lstlisting}[language=bash]
+pdflatex proyecto_enoe_bdd.tex
+pdflatex proyecto_enoe_bdd.tex
+\end{lstlisting}
+
+También puede subirse la carpeta completa \ruta{latex_entrega} a Overleaf. Es
+importante conservar las carpetas \ruta{figuras} y \ruta{consultas}.
+
+\end{document}
